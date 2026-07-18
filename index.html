@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Свист-Эхо — приложение, которое отвечает свистом</title>
+    <meta
+      name="description"
+      content="Свистни в микрофон — приложение услышит свист и ответит свистом той же частоты."
+    />
+    <meta name="theme-color" content="#0f172a" />
+    <style>
+      :root {
+        --bg: #0b1220;
+        --bg-2: #111a2e;
+        --card: #131c33;
+        --border: #24324f;
+        --text: #e6ecff;
+        --muted: #93a2c6;
+        --primary: #7c9cff;
+        --primary-ink: #0b1220;
+        --danger: #ff7a7a;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; height: 100%; }
+      body {
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: var(--text);
+        background: radial-gradient(1200px 600px at 50% -10%, #1b2749 0%, var(--bg) 60%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+        padding: 2rem 1.25rem;
+        min-height: 100dvh;
+      }
+      header { text-align: center; max-width: 32rem; }
+      h1 { font-size: clamp(2rem, 6vw, 2.75rem); margin: 0 0 .5rem; letter-spacing: -0.02em; }
+      header p { color: var(--muted); margin: 0; }
+      .orb {
+        position: relative;
+        width: 14rem; height: 14rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        display: grid; place-items: center;
+        transition: box-shadow .3s, border-color .3s, background .3s;
+      }
+      .orb.listening {
+        border-color: rgba(124,156,255,.5);
+        background: rgba(124,156,255,.06);
+        box-shadow: 0 0 80px -10px var(--primary);
+      }
+      .orb .emoji { font-size: 3.5rem; }
+      .orb .tag {
+        margin-top: .5rem; font-size: .7rem;
+        text-transform: uppercase; letter-spacing: .2em;
+        color: var(--muted);
+      }
+      .ping, .pulse {
+        position: absolute; border-radius: 999px; pointer-events: none;
+      }
+      .ping { inset: 0; background: rgba(124,156,255,.12); animation: ping 1.6s cubic-bezier(0,0,.2,1) infinite; }
+      .pulse { inset: 1rem; background: rgba(124,156,255,.06); animation: pulse 2s ease-in-out infinite; }
+      @keyframes ping { 75%,100% { transform: scale(1.4); opacity: 0; } }
+      @keyframes pulse { 0%,100% { opacity:.6 } 50% { opacity:1 } }
+      button.action {
+        appearance: none; border: 0; cursor: pointer;
+        background: var(--primary); color: var(--primary-ink);
+        font: inherit; font-weight: 600;
+        padding: .85rem 2rem; border-radius: 999px;
+        box-shadow: 0 10px 30px -10px rgba(124,156,255,.6);
+        transition: transform .1s ease, opacity .2s;
+      }
+      button.action:hover { opacity: .92; }
+      button.action:active { transform: scale(.97); }
+      .status { min-height: 3.25rem; text-align: center; }
+      .status .msg { color: var(--muted); margin: 0; }
+      .status .freq { color: var(--muted); opacity: .7; margin: .25rem 0 0; font-size: .8rem; }
+      .status .err { color: var(--danger); margin: .25rem 0 0; font-size: .8rem; }
+      footer { color: var(--muted); opacity: .7; font-size: .75rem; text-align: center; max-width: 22rem; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Свист-Эхо</h1>
+      <p>Свистни в микрофон — приложение услышит и ответит свистом той же частоты.</p>
+    </header>
+
+    <div id="orb" class="orb" aria-hidden="true">
+      <div style="text-align:center; position:relative;">
+        <div class="emoji">🎵</div>
+        <div id="tag" class="tag">готов</div>
+      </div>
+    </div>
+
+    <button id="toggle" class="action">Начать слушать</button>
+
+    <div class="status">
+      <p id="msg" class="msg">Нажми кнопку и разреши доступ к микрофону</p>
+      <p id="freq" class="freq" hidden></p>
+      <p id="err" class="err" hidden></p>
+    </div>
+
+    <footer>Совет: свисти чётко и держи телефон в 10–20 см. Работает лучше в тишине.</footer>
+
+    <script>
+      (function () {
+        const MIN_FREQ = 800;
+        const MAX_FREQ = 4000;
+        const MAGNITUDE_THRESHOLD = 160;
+        const COOLDOWN_MS = 900;
+
+        const orb = document.getElementById("orb");
+        const tag = document.getElementById("tag");
+        const btn = document.getElementById("toggle");
+        const msg = document.getElementById("msg");
+        const freqEl = document.getElementById("freq");
+        const errEl = document.getElementById("err");
+
+        let audioCtx = null;
+        let analyser = null;
+        let stream = null;
+        let raf = null;
+        let cooldownUntil = 0;
+        let listening = false;
+        let pingEls = [];
+
+        function setListening(v) {
+          listening = v;
+          btn.textContent = v ? "Остановить" : "Начать слушать";
+          tag.textContent = v ? "в эфире" : "готов";
+          orb.classList.toggle("listening", v);
+          // add/remove animated rings
+          pingEls.forEach((el) => el.remove());
+          pingEls = [];
+          if (v) {
+            const ping = document.createElement("span"); ping.className = "ping";
+            const pulse = document.createElement("span"); pulse.className = "pulse";
+            orb.prepend(ping, pulse);
+            pingEls = [ping, pulse];
+          }
+        }
+
+        function showError(text) {
+          if (!text) { errEl.hidden = true; return; }
+          errEl.textContent = text; errEl.hidden = false;
+        }
+
+        function playWhistle(freq) {
+          if (!audioCtx) return;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = freq;
+          const now = audioCtx.currentTime;
+          const dur = 0.55;
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.35, now + 0.05);
+          gain.gain.linearRampToValueAtTime(0.35, now + dur - 0.1);
+          gain.gain.linearRampToValueAtTime(0, now + dur);
+          const lfo = audioCtx.createOscillator();
+          const lfoGain = audioCtx.createGain();
+          lfo.frequency.value = 5;
+          lfoGain.gain.value = freq * 0.01;
+          lfo.connect(lfoGain).connect(osc.frequency);
+          osc.connect(gain).connect(audioCtx.destination);
+          osc.start(now); lfo.start(now);
+          osc.stop(now + dur); lfo.stop(now + dur);
+        }
+
+        function stop() {
+          if (raf) cancelAnimationFrame(raf);
+          raf = null;
+          if (stream) stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+          analyser = null;
+          setListening(false);
+          msg.textContent = "Остановлено";
+        }
+
+        async function start() {
+          showError(null);
+          try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            audioCtx = audioCtx || new AC();
+            if (audioCtx.state === "suspended") await audioCtx.resume();
+
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+            });
+
+            const source = audioCtx.createMediaStreamSource(stream);
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 4096;
+            analyser.smoothingTimeConstant = 0.3;
+            source.connect(analyser);
+
+            const bins = new Uint8Array(analyser.frequencyBinCount);
+            const binHz = audioCtx.sampleRate / analyser.fftSize;
+            const minBin = Math.floor(MIN_FREQ / binHz);
+            const maxBin = Math.min(bins.length - 1, Math.ceil(MAX_FREQ / binHz));
+
+            setListening(true);
+            msg.textContent = "Слушаю... свистни!";
+
+            const loop = () => {
+              if (!analyser) return;
+              analyser.getByteFrequencyData(bins);
+              let peakBin = -1, peakVal = 0;
+              for (let i = minBin; i <= maxBin; i++) {
+                if (bins[i] > peakVal) { peakVal = bins[i]; peakBin = i; }
+              }
+              const now = performance.now();
+              if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD && now > cooldownUntil) {
+                const neighborAvg =
+                  (bins[Math.max(minBin, peakBin - 10)] + bins[Math.min(maxBin, peakBin + 10)]) / 2;
+                if (peakVal - neighborAvg > 30) {
+                  const f = peakBin * binHz;
+                  freqEl.hidden = false;
+                  freqEl.textContent = "Последняя частота: " + Math.round(f) + " Гц";
+                  msg.textContent = "Услышал свист ~" + Math.round(f) + " Гц — отвечаю!";
+                  cooldownUntil = now + COOLDOWN_MS;
+                  playWhistle(f);
+                }
+              }
+              raf = requestAnimationFrame(loop);
+            };
+            raf = requestAnimationFrame(loop);
+          } catch (e) {
+            showError((e && e.message) || "Не удалось получить доступ к микрофону");
+            msg.textContent = "Ошибка";
+            setListening(false);
+          }
+        }
+
+        btn.addEventListener("click", () => (listening ? stop() : start()));
+        window.addEventListener("pagehide", stop);
+      })();
+    </script>
+  </body>
+</html>
