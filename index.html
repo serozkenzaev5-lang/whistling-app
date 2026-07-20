@@ -23,34 +23,53 @@
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; height: 100%; }
+      
       body {
         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: var(--text);
-        background: radial-gradient(1200px 600px at 50% -10%, #1b2749 0%, var(--bg) 60%);
+        background: radial-gradient(1200px 600px at 50% -10%, #1b2749 0%, var(--bg) 80%);
+        position: relative;
+        overflow-x: hidden;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: space-between;
         min-height: 100dvh;
-        padding: 2rem 1.25rem;
+        padding: 3rem 1.25rem;
+      }
+
+      /* ДЕКОР 1: Фоновая технологическая сетка */
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: 
+          linear-gradient(to right, rgba(36, 50, 79, 0.15) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(36, 50, 79, 0.15) 1px, transparent 1px);
+        background-size: 40px 40px;
+        background-position: center top;
+        mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 40%, transparent 100%);
+        -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 40%, transparent 100%);
+        pointer-events: none;
+        z-index: 0;
       }
       
-      /* Контейнер для адаптивной верстки */
       .main-container {
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2rem;
+        gap: 2.5rem;
         width: 100%;
-        max-width: 1000px;
+        max-width: 1100px;
         margin: auto;
       }
       
       header { text-align: center; max-width: 36rem; }
-      h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); margin: 0 0 .5rem; letter-spacing: -0.02em; }
-      header p { color: var(--muted); margin: 0; font-size: 1.1rem; }
+      h1 { font-size: clamp(2.5rem, 6vw, 4rem); margin: 0 0 .5rem; letter-spacing: -0.03em; font-weight: 800; }
+      header p { color: var(--muted); margin: 0; font-size: 1.15rem; }
       
-      /* Две колонки для больших экранов */
       .content-layout {
         display: flex;
         flex-direction: column;
@@ -99,63 +118,109 @@
       button.action {
         appearance: none; border: 0; cursor: pointer;
         background: var(--primary); color: var(--primary-ink);
-        font: inherit; font-weight: 600;
-        padding: .85rem 2.5rem; border-radius: 999px;
+        font: inherit; font-weight: 700; letter-spacing: 0.02em;
+        padding: 1rem 2.5rem; border-radius: 999px;
         box-shadow: 0 10px 30px -10px rgba(124,156,255,.6);
-        transition: transform .1s ease, opacity .2s;
+        transition: transform .1s ease, opacity .2s, box-shadow .2s;
         width: 100%;
         max-width: 16rem;
       }
-      button.action:hover { opacity: .92; }
+      button.action:hover { opacity: .95; box-shadow: 0 12px 35px -8px rgba(124,156,255,.8); }
       button.action:active { transform: scale(.97); }
       
-      .status { min-height: 4rem; text-align: center; }
-      .status .msg { color: var(--text); font-weight: 500; margin: 0; }
-      .status .freq { color: var(--primary); margin: .35rem 0 0; font-size: .9rem; font-weight: 600; }
-      .status .err { color: var(--danger); margin: .35rem 0 0; font-size: .85rem; }
+      .status { min-height: 4.5rem; text-align: center; }
+      .status .msg { color: var(--text); font-weight: 500; margin: 0; font-size: 1.05rem; }
+      .status .freq { color: var(--primary); margin: .4rem 0 0; font-size: 0.95rem; font-weight: 600; text-shadow: 0 0 10px rgba(124,156,255,0.3); }
+      .status .err { color: var(--danger); margin: .4rem 0 0; font-size: .85rem; }
       
-      /* Контейнер для визуализатора волны */
+      /* Правая колонка с визуализатором */
+      .right-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 500px;
+      }
+
+      /* ДЕКОР 2: Технологичные рамки/уголки для экрана */
       .visualizer-container {
+        position: relative;
         width: 100%;
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
+        border-radius: 12px;
+        padding: 1.25rem;
       }
+      /* Отрисовка Sci-Fi уголков с помощью псевдоэлементов */
+      .visualizer-container::before, .visualizer-container::after {
+        content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none;
+      }
+      .visualizer-container::before {
+        top: -1px; left: -1px;
+        border-top: 2px solid var(--primary); border-left: 2px solid var(--primary);
+        border-top-left-radius: 12px;
+      }
+      .visualizer-container::after {
+        bottom: -1px; right: -1px;
+        border-bottom: 2px solid var(--primary); border-right: 2px solid var(--primary);
+        border-bottom-right-radius: 12px;
+      }
+
       .visualizer-title {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.15em;
         color: var(--muted);
-        text-align: center;
+        margin-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
+      .status-indicator {
+        width: 8px; height: 8px; background: #ff7a7a; border-radius: 50%;
+        box-shadow: 0 0 8px #ff7a7a; transition: background 0.3s;
+      }
+      .status-indicator.active { background: #50e3c2; box-shadow: 0 0 8px #50e3c2; }
+
       canvas {
         width: 100%;
-        height: 120px;
-        background: var(--bg-2);
-        border-radius: 8px;
+        height: 130px;
+        background: #090f1a;
+        border: 1px solid rgba(36, 50, 79, 0.5);
+        border-radius: 6px;
         display: block;
       }
 
-      footer { color: var(--muted); opacity: 0.7; font-size: 0.8rem; text-align: center; max-width: 28rem; margin-top: 2rem; }
+      /* ДЕКОР 3: Информационная панель со спецификациями */
+      .spec-panel {
+        background: rgba(19, 28, 51, 0.4);
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .spec-item span { color: var(--text); font-weight: bold; }
 
-      /* Планшеты и ПК: перестраиваем в двухколоночный режим */
+      footer { color: var(--muted); opacity: 0.6; font-size: 0.8rem; text-align: center; max-width: 32rem; margin-top: 1rem; }
+
+      /* Планшеты и ПК: перестраиваем интерфейс в 2 колонки */
       @media (min-width: 768px) {
         .content-layout {
           flex-direction: row;
           justify-content: center;
-          align-items: center;
+          align-items: stretch; /* Растягиваем колонки по высоте для баланса */
           gap: 4rem;
         }
-        .visualizer-container {
-          flex: 1;
-          max-width: 500px;
+        .control-panel {
+          justify-content: center;
         }
         canvas {
-          height: 200px; /* На ПК делаем график повыше и солиднее */
+          height: 180px;
         }
       }
     </style>
@@ -168,7 +233,7 @@
       </header>
 
       <div class="content-layout">
-        <!-- Левая колонка: управление (бывшая центральная часть) -->
+        <!-- Левая колонка: управление -->
         <div class="control-panel">
           <div id="orb" class="orb" aria-hidden="true">
             <div style="text-align:center; position:relative;">
@@ -186,10 +251,23 @@
           </div>
         </div>
 
-        <!-- Правая колонка: красивый визуализатор частот (появляется сбоку на ПК, снизу на смартфонах) -->
-        <div class="visualizer-container">
-          <div class="visualizer-title">Анализатор звуковой волны</div>
-          <canvas id="waveform"></canvas>
+        <!-- Правая колонка: Экран анализатора и технические данные -->
+        <div class="right-column">
+          <div class="visualizer-container">
+            <div class="visualizer-title">
+              <span>DSP Анализатор частоты</span>
+              <div id="ind" class="status-indicator"></div>
+            </div>
+            <canvas id="waveform"></canvas>
+          </div>
+
+          <!-- Декоративная техническая панель данных -->
+          <div class="spec-panel">
+            <div class="spec-item">Диапазон: <span>800-4000 Гц</span></div>
+            <div class="spec-item">Порог: <span>160 магнитуд</span></div>
+            <div class="spec-item">Задержка: <span>900 мс</span></div>
+            <div class="spec-item">FFT Буфер: <span>4096 сэмплов</span></div>
+          </div>
         </div>
       </div>
 
@@ -209,8 +287,8 @@
         const msg = document.getElementById("msg");
         const freqEl = document.getElementById("freq");
         const errEl = document.getElementById("err");
+        const ind = document.getElementById("ind");
         
-        // Элементы холста визуализации
         const canvas = document.getElementById("waveform");
         const canvasCtx = canvas.getContext("2d");
 
@@ -221,9 +299,8 @@
         let cooldownUntil = 0;
         let listening = false;
         let pingEls = [];
-        let waveDataArray = null; // Для отрисовки волны
+        let waveDataArray = null;
 
-        // Настройка размеров холста с учетом Retina-дисплеев
         function resizeCanvas() {
           const dpr = window.devicePixelRatio || 1;
           const rect = canvas.getBoundingClientRect();
@@ -239,6 +316,12 @@
           btn.textContent = v ? "Остановить" : "Начать слушать";
           tag.textContent = v ? "в эфире" : "готов";
           orb.classList.toggle("listening", v);
+          
+          if(v) {
+            ind.classList.add("active");
+          } else {
+            ind.classList.remove("active");
+          }
           
           pingEls.forEach((el) => el.remove());
           pingEls = [];
@@ -286,7 +369,6 @@
           setListening(false);
           msg.textContent = "Остановлено";
           
-          // Очищаем экран визуализатора ровной линией
           const w = canvas.width / (window.devicePixelRatio || 1);
           const h = canvas.height / (window.devicePixelRatio || 1);
           canvasCtx.clearRect(0, 0, w, h);
@@ -316,7 +398,7 @@
             source.connect(analyser);
 
             const bins = new Uint8Array(analyser.frequencyBinCount);
-            waveDataArray = new Uint8Array(analyser.fftSize); // Буфер для осциллограммы
+            waveDataArray = new Uint8Array(analyser.fftSize);
             
             const binHz = audioCtx.sampleRate / analyser.fftSize;
             const minBin = Math.floor(MIN_FREQ / binHz);
@@ -329,7 +411,6 @@
             const loop = () => {
               if (!analyser) return;
               
-              // 1. АНАЛИЗ ЧАСТОТ ДЛЯ СВИСТА
               analyser.getByteFrequencyData(bins);
               let peakBin = -1, peakVal = 0;
               for (let i = minBin; i <= maxBin; i++) {
@@ -349,24 +430,21 @@
                 }
               }
               
-              // 2. ОТРИСОВКА ЖИВОЙ ВОЛНЫ ЗВУКА
               analyser.getByteTimeDomainData(waveDataArray);
               const w = canvas.width / (window.devicePixelRatio || 1);
               const h = canvas.height / (window.devicePixelRatio || 1);
               
               canvasCtx.clearRect(0, 0, w, h);
               
-              // Рисуем сетку на заднем фоне визуализатора для стиля
               canvasCtx.lineWidth = 1;
-              canvasCtx.strokeStyle = 'rgba(36, 50, 79, 0.3)';
-              for(let i = 0; i < w; i += 30) {
+              canvasCtx.strokeStyle = 'rgba(36, 50, 79, 0.25)';
+              for(let i = 0; i < w; i += 40) {
                 canvasCtx.beginPath(); canvasCtx.moveTo(i, 0); canvasCtx.lineTo(i, h); canvasCtx.stroke();
               }
               for(let j = 0; j < h; j += 30) {
                 canvasCtx.beginPath(); canvasCtx.moveTo(0, j); canvasCtx.lineTo(w, j); canvasCtx.stroke();
               }
 
-              // Меняем цвет линии, если идет «кулдаун» (приложение отвечает на свист)
               canvasCtx.lineWidth = 2.5;
               canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : '#7c9cff';
               
@@ -401,7 +479,6 @@
         btn.addEventListener("click", () => (listening ? stop() : start()));
         window.addEventListener("pagehide", stop);
         
-        // Рисуем начальную статическую линию при загрузке
         stop();
       })();
     </script>
