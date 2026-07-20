@@ -11,12 +11,12 @@
     <meta name="theme-color" content="#0f172a" />
     <style>
       :root {
-        --bg: #0b1220;
-        --bg-2: #111a2e;
-        --card: #131c33;
-        --border: #24324f;
+        --bg: #070c16;
+        --bg-2: #0b1220;
+        --card: rgba(19, 28, 51, 0.6);
+        --border: #1e293b;
         --text: #e6ecff;
-        --muted: #93a2c6;
+        --muted: #8493b5;
         --primary: #7c9cff;
         --primary-ink: #0b1220;
         --danger: #ff7a7a;
@@ -27,7 +27,7 @@
       body {
         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: var(--text);
-        background: radial-gradient(1200px 600px at 50% -10%, #1b2749 0%, var(--bg) 80%);
+        background-color: var(--bg);
         position: relative;
         overflow-x: hidden;
         display: flex;
@@ -38,25 +38,28 @@
         padding: 3rem 1.25rem;
       }
 
-      /* ДЕКОР 1: Фоновая технологическая сетка */
-      body::before {
-        content: "";
-        position: absolute;
+      /* Живой фоновый холст для частиц */
+      #bg-canvas {
+        position: fixed;
         inset: 0;
-        background-image: 
-          linear-gradient(to right, rgba(36, 50, 79, 0.15) 1px, transparent 1px),
-          linear-gradient(to bottom, rgba(36, 50, 79, 0.15) 1px, transparent 1px);
-        background-size: 40px 40px;
-        background-position: center top;
-        mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 40%, transparent 100%);
-        -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 40%, transparent 100%);
-        pointer-events: none;
+        width: 100%;
+        height: 100%;
         z-index: 0;
+        pointer-events: none;
+      }
+
+      /* Градиентное свечение поверх частиц для мягкости */
+      .bg-overlay {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 50% -20%, rgba(27, 39, 73, 0.6) 0%, transparent 70%);
+        z-index: 1;
+        pointer-events: none;
       }
       
       .main-container {
         position: relative;
-        z-index: 1;
+        z-index: 2;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -67,7 +70,15 @@
       }
       
       header { text-align: center; max-width: 36rem; }
-      h1 { font-size: clamp(2.5rem, 6vw, 4rem); margin: 0 0 .5rem; letter-spacing: -0.03em; font-weight: 800; }
+      h1 { 
+        font-size: clamp(2.5rem, 6vw, 4rem); 
+        margin: 0 0 .5rem; 
+        letter-spacing: -0.03em; 
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff 30%, var(--primary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
       header p { color: var(--muted); margin: 0; font-size: 1.15rem; }
       
       .content-layout {
@@ -92,9 +103,10 @@
         width: 14rem; height: 14rem;
         border-radius: 999px;
         border: 1px solid var(--border);
-        background: var(--card);
+        background: #111a2e;
         display: grid; place-items: center;
         transition: box-shadow .3s, border-color .3s, background .3s;
+        backdrop-filter: blur(8px);
       }
       .orb.listening {
         border-color: rgba(124,156,255,.5);
@@ -133,7 +145,6 @@
       .status .freq { color: var(--primary); margin: .4rem 0 0; font-size: 0.95rem; font-weight: 600; text-shadow: 0 0 10px rgba(124,156,255,0.3); }
       .status .err { color: var(--danger); margin: .4rem 0 0; font-size: .85rem; }
       
-      /* Правая колонка с визуализатором */
       .right-column {
         display: flex;
         flex-direction: column;
@@ -142,7 +153,6 @@
         max-width: 500px;
       }
 
-      /* ДЕКОР 2: Технологичные рамки/уголки для экрана */
       .visualizer-container {
         position: relative;
         width: 100%;
@@ -150,8 +160,8 @@
         border: 1px solid var(--border);
         border-radius: 12px;
         padding: 1.25rem;
+        backdrop-filter: blur(8px);
       }
-      /* Отрисовка Sci-Fi уголков с помощью псевдоэлементов */
       .visualizer-container::before, .visualizer-container::after {
         content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none;
       }
@@ -182,18 +192,17 @@
       }
       .status-indicator.active { background: #50e3c2; box-shadow: 0 0 8px #50e3c2; }
 
-      canvas {
+      canvas#waveform {
         width: 100%;
         height: 130px;
-        background: #090f1a;
-        border: 1px solid rgba(36, 50, 79, 0.5);
+        background: #040811;
+        border: 1px solid rgba(36, 50, 79, 0.4);
         border-radius: 6px;
         display: block;
       }
 
-      /* ДЕКОР 3: Информационная панель со спецификациями */
       .spec-panel {
-        background: rgba(19, 28, 51, 0.4);
+        background: rgba(19, 28, 51, 0.3);
         border: 1px dashed var(--border);
         border-radius: 8px;
         padding: 1rem;
@@ -203,29 +212,33 @@
         font-family: monospace;
         font-size: 0.75rem;
         color: var(--muted);
+        backdrop-filter: blur(8px);
       }
       .spec-item span { color: var(--text); font-weight: bold; }
 
-      footer { color: var(--muted); opacity: 0.6; font-size: 0.8rem; text-align: center; max-width: 32rem; margin-top: 1rem; }
+      footer { color: var(--muted); opacity: 0.5; font-size: 0.8rem; text-align: center; max-width: 32rem; margin-top: 1rem; }
 
-      /* Планшеты и ПК: перестраиваем интерфейс в 2 колонки */
       @media (min-width: 768px) {
         .content-layout {
           flex-direction: row;
           justify-content: center;
-          align-items: stretch; /* Растягиваем колонки по высоте для баланса */
+          align-items: stretch;
           gap: 4rem;
         }
         .control-panel {
           justify-content: center;
         }
-        canvas {
+        canvas#waveform {
           height: 180px;
         }
       }
     </style>
   </head>
   <body>
+    <!-- Фоновые слои декора -->
+    <canvas id="bg-canvas"></canvas>
+    <div class="bg-overlay"></div>
+
     <div class="main-container">
       <header>
         <h1>Свист-Эхо</h1>
@@ -233,7 +246,6 @@
       </header>
 
       <div class="content-layout">
-        <!-- Левая колонка: управление -->
         <div class="control-panel">
           <div id="orb" class="orb" aria-hidden="true">
             <div style="text-align:center; position:relative;">
@@ -251,7 +263,6 @@
           </div>
         </div>
 
-        <!-- Правая колонка: Экран анализатора и технические данные -->
         <div class="right-column">
           <div class="visualizer-container">
             <div class="visualizer-title">
@@ -261,7 +272,6 @@
             <canvas id="waveform"></canvas>
           </div>
 
-          <!-- Декоративная техническая панель данных -->
           <div class="spec-panel">
             <div class="spec-item">Диапазон: <span>800-4000 Гц</span></div>
             <div class="spec-item">Порог: <span>160 магнитуд</span></div>
@@ -292,6 +302,10 @@
         const canvas = document.getElementById("waveform");
         const canvasCtx = canvas.getContext("2d");
 
+        // Элементы фонового холста
+        const bgCanvas = document.getElementById("bg-canvas");
+        const bgCtx = bgCanvas.getContext("2d");
+
         let audioCtx = null;
         let analyser = null;
         let stream = null;
@@ -301,15 +315,46 @@
         let pingEls = [];
         let waveDataArray = null;
 
-        function resizeCanvas() {
+        // Система фоновых аудио-частиц
+        let particles = [];
+        const PARTICLE_COUNT = window.innerWidth > 768 ? 60 : 25; // меньше частиц на телефонах
+
+        function initParticles() {
+          particles = [];
+          for (let i = 0; i < PARTICLE_COUNT; i++) {
+            particles.push({
+              x: Math.random() * bgCanvas.width,
+              y: Math.random() * bgCanvas.height,
+              size: Math.random() * 2 + 0.5,
+              speedX: (Math.random() - 0.5) * 0.3,
+              speedY: -Math.random() * 0.5 - 0.2,
+              alpha: Math.random() * 0.5 + 0.1,
+              baseAlpha: Math.random() * 0.4 + 0.1
+            });
+          }
+        }
+
+        function resizeCanvases() {
           const dpr = window.devicePixelRatio || 1;
+          
+          // Ресайз главного анализатора
           const rect = canvas.getBoundingClientRect();
           canvas.width = rect.width * dpr;
           canvas.height = rect.height * dpr;
           canvasCtx.scale(dpr, dpr);
+
+          // Ресайз фонового холста (на весь экран)
+          bgCanvas.width = window.innerWidth;
+          bgCanvas.height = window.innerHeight;
+          initParticles();
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        window.addEventListener('resize', resizeCanvases);
+        
+        // Начальная инициализация размеров
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+        initParticles();
+        resizeCanvases();
 
         function setListening(v) {
           listening = v;
@@ -317,11 +362,8 @@
           tag.textContent = v ? "в эфире" : "готов";
           orb.classList.toggle("listening", v);
           
-          if(v) {
-            ind.classList.add("active");
-          } else {
-            ind.classList.remove("active");
-          }
+          if(v) ind.classList.add("active");
+          else ind.classList.remove("active");
           
           pingEls.forEach((el) => el.remove());
           pingEls = [];
@@ -369,6 +411,7 @@
           setListening(false);
           msg.textContent = "Остановлено";
           
+          // Сброс линии осциллографа
           const w = canvas.width / (window.devicePixelRatio || 1);
           const h = canvas.height / (window.devicePixelRatio || 1);
           canvasCtx.clearRect(0, 0, w, h);
@@ -378,6 +421,45 @@
           canvasCtx.moveTo(0, h / 2);
           canvasCtx.lineTo(w, h / 2);
           canvasCtx.stroke();
+        }
+
+        // Рендеринг исключительно фонового декора (работает всегда автономно для плавности)
+        function renderBackground(audioIntensity = 0) {
+          bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+          
+          // Статичная сетка киберпанка
+          bgCtx.lineWidth = 1;
+          bgCtx.strokeStyle = 'rgba(36, 50, 79, 0.08)';
+          const gridSize = 50;
+          for (let x = 0; x < bgCanvas.width; x += gridSize) {
+            bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, bgCanvas.height); bgCtx.stroke();
+          }
+          for (let y = 0; y < bgCanvas.height; y += gridSize) {
+            bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(bgCanvas.width, y); bgCtx.stroke();
+          }
+
+          // Анимация летающих частиц звука
+          for (let i = 0; i < particles.length; i++) {
+            let p = particles[i];
+            
+            // Если звук громкий, частицы ускоряются и светятся сильнее
+            const currentSpeedY = p.speedY * (1 + audioIntensity * 3);
+            const currentAlpha = Math.min(0.8, p.baseAlpha + audioIntensity * 0.5);
+            
+            p.y += currentSpeedY;
+            p.x += p.speedX;
+
+            // Возврат частиц, если они улетели за верхний край экрана
+            if (p.y < -10) {
+              p.y = bgCanvas.height + 10;
+              p.x = Math.random() * bgCanvas.width;
+            }
+
+            bgCtx.beginPath();
+            bgCtx.arc(p.x, p.y, p.size * (1 + audioIntensity * 1.5), 0, Math.PI * 2);
+            bgCtx.fillStyle = audioIntensity > 0.6 ? `rgba(255, 122, 122, ${currentAlpha})` : `rgba(124, 156, 255, ${currentAlpha})`;
+            bgCtx.fill();
+          }
         }
 
         async function start() {
@@ -406,16 +488,25 @@
 
             setListening(true);
             msg.textContent = "Слушаю... свистни!";
-            resizeCanvas();
+            resizeCanvases();
 
             const loop = () => {
               if (!analyser) return;
               
+              // 1. АНАЛИЗ ЧАСТОТ ДЛЯ СВИСТА
               analyser.getByteFrequencyData(bins);
               let peakBin = -1, peakVal = 0;
+              let totalVolume = 0; // Для расчета общей громкости под фон
+              
               for (let i = minBin; i <= maxBin; i++) {
+                totalVolume += bins[i];
                 if (bins[i] > peakVal) { peakVal = bins[i]; peakBin = i; }
               }
+              
+              // Вычисляем интенсивность шума от 0 до 1
+              const avgVolume = totalVolume / (maxBin - minBin);
+              const intensity = Math.min(1, avgVolume / 120);
+
               const now = performance.now();
               if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD && now > cooldownUntil) {
                 const neighborAvg =
@@ -430,6 +521,7 @@
                 }
               }
               
+              // 2. ОТРИСОВКА ЖИВОЙ ВОЛНЫ ЗВУКА
               analyser.getByteTimeDomainData(waveDataArray);
               const w = canvas.width / (window.devicePixelRatio || 1);
               const h = canvas.height / (window.devicePixelRatio || 1);
@@ -455,16 +547,16 @@
               for (let i = 0; i < waveDataArray.length; i++) {
                 const v = waveDataArray[i] / 128.0;
                 const y = (v * h) / 2;
-                if (i === 0) {
-                  canvasCtx.moveTo(x, y);
-                } else {
-                  canvasCtx.lineTo(x, y);
-                }
+                if (i === 0) canvasCtx.moveTo(x, y);
+                else canvasCtx.lineTo(x, y);
                 x += sliceWidth;
               }
               
               canvasCtx.lineTo(w, h / 2);
               canvasCtx.stroke();
+
+              // 3. ОБНОВЛЕНИЕ ФОНА С УЧЕТОМ ГРОМКОСТИ ЗВУКА
+              renderBackground(intensity);
 
               raf = requestAnimationFrame(loop);
             };
@@ -476,10 +568,19 @@
           }
         }
 
+        // Анимация спокойного фона по умолчанию, когда приложение не слушает
+        function idleBackgroundLoop() {
+          if (!listening) {
+            renderBackground(0);
+          }
+          requestAnimationFrame(idleBackgroundLoop);
+        }
+
         btn.addEventListener("click", () => (listening ? stop() : start()));
         window.addEventListener("pagehide", stop);
         
         stop();
+        idleBackgroundLoop(); // Запуск фонового декoра
       })();
     </script>
   </body>
