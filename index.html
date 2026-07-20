@@ -30,14 +30,44 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 2rem;
-        padding: 2rem 1.25rem;
+        justify-content: space-between;
         min-height: 100dvh;
+        padding: 2rem 1.25rem;
       }
-      header { text-align: center; max-width: 32rem; }
-      h1 { font-size: clamp(2rem, 6vw, 2.75rem); margin: 0 0 .5rem; letter-spacing: -0.02em; }
-      header p { color: var(--muted); margin: 0; }
+      
+      /* Контейнер для адаптивной верстки */
+      .main-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+        width: 100%;
+        max-width: 1000px;
+        margin: auto;
+      }
+      
+      header { text-align: center; max-width: 36rem; }
+      h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); margin: 0 0 .5rem; letter-spacing: -0.02em; }
+      header p { color: var(--muted); margin: 0; font-size: 1.1rem; }
+      
+      /* Две колонки для больших экранов */
+      .content-layout {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2.5rem;
+        width: 100%;
+      }
+      
+      .control-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 24rem;
+      }
+
       .orb {
         position: relative;
         width: 14rem; height: 14rem;
@@ -65,45 +95,106 @@
       .pulse { inset: 1rem; background: rgba(124,156,255,.06); animation: pulse 2s ease-in-out infinite; }
       @keyframes ping { 75%,100% { transform: scale(1.4); opacity: 0; } }
       @keyframes pulse { 0%,100% { opacity:.6 } 50% { opacity:1 } }
+      
       button.action {
         appearance: none; border: 0; cursor: pointer;
         background: var(--primary); color: var(--primary-ink);
         font: inherit; font-weight: 600;
-        padding: .85rem 2rem; border-radius: 999px;
+        padding: .85rem 2.5rem; border-radius: 999px;
         box-shadow: 0 10px 30px -10px rgba(124,156,255,.6);
         transition: transform .1s ease, opacity .2s;
+        width: 100%;
+        max-width: 16rem;
       }
       button.action:hover { opacity: .92; }
       button.action:active { transform: scale(.97); }
-      .status { min-height: 3.25rem; text-align: center; }
-      .status .msg { color: var(--muted); margin: 0; }
-      .status .freq { color: var(--muted); opacity: .7; margin: .25rem 0 0; font-size: .8rem; }
-      .status .err { color: var(--danger); margin: .25rem 0 0; font-size: .8rem; }
-      footer { color: var(--muted); opacity: .7; font-size: .75rem; text-align: center; max-width: 22rem; }
+      
+      .status { min-height: 4rem; text-align: center; }
+      .status .msg { color: var(--text); font-weight: 500; margin: 0; }
+      .status .freq { color: var(--primary); margin: .35rem 0 0; font-size: .9rem; font-weight: 600; }
+      .status .err { color: var(--danger); margin: .35rem 0 0; font-size: .85rem; }
+      
+      /* Контейнер для визуализатора волны */
+      .visualizer-container {
+        width: 100%;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .visualizer-title {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        text-align: center;
+      }
+      canvas {
+        width: 100%;
+        height: 120px;
+        background: var(--bg-2);
+        border-radius: 8px;
+        display: block;
+      }
+
+      footer { color: var(--muted); opacity: 0.7; font-size: 0.8rem; text-align: center; max-width: 28rem; margin-top: 2rem; }
+
+      /* Планшеты и ПК: перестраиваем в двухколоночный режим */
+      @media (min-width: 768px) {
+        .content-layout {
+          flex-direction: row;
+          justify-content: center;
+          align-items: center;
+          gap: 4rem;
+        }
+        .visualizer-container {
+          flex: 1;
+          max-width: 500px;
+        }
+        canvas {
+          height: 200px; /* На ПК делаем график повыше и солиднее */
+        }
+      }
     </style>
   </head>
   <body>
-    <header>
-      <h1>Свист-Эхо</h1>
-      <p>Свистни в микрофон — приложение услышит и ответит свистом той же частоты.</p>
-    </header>
+    <div class="main-container">
+      <header>
+        <h1>Свист-Эхо</h1>
+        <p>Приложение услышит ваш свист и ответит свистом той же частоты.</p>
+      </header>
 
-    <div id="orb" class="orb" aria-hidden="true">
-      <div style="text-align:center; position:relative;">
-        <div class="emoji">🎵</div>
-        <div id="tag" class="tag">готов</div>
+      <div class="content-layout">
+        <!-- Левая колонка: управление (бывшая центральная часть) -->
+        <div class="control-panel">
+          <div id="orb" class="orb" aria-hidden="true">
+            <div style="text-align:center; position:relative;">
+              <div class="emoji">🎵</div>
+              <div id="tag" class="tag">готов</div>
+            </div>
+          </div>
+
+          <button id="toggle" class="action">Начать слушать</button>
+
+          <div class="status">
+            <p id="msg" class="msg">Нажми кнопку и разреши доступ к микрофону</p>
+            <p id="freq" class="freq" hidden></p>
+            <p id="err" class="err" hidden></p>
+          </div>
+        </div>
+
+        <!-- Правая колонка: красивый визуализатор частот (появляется сбоку на ПК, снизу на смартфонах) -->
+        <div class="visualizer-container">
+          <div class="visualizer-title">Анализатор звуковой волны</div>
+          <canvas id="waveform"></canvas>
+        </div>
       </div>
+
+      <footer>Совет: свисти чётко и держи телефон или микрофон в 10–20 см. Лучше всего работает в тишине.</footer>
     </div>
-
-    <button id="toggle" class="action">Начать слушать</button>
-
-    <div class="status">
-      <p id="msg" class="msg">Нажми кнопку и разреши доступ к микрофону</p>
-      <p id="freq" class="freq" hidden></p>
-      <p id="err" class="err" hidden></p>
-    </div>
-
-    <footer>Совет: свисти чётко и держи телефон в 10–20 см. Работает лучше в тишине.</footer>
 
     <script>
       (function () {
@@ -118,6 +209,10 @@
         const msg = document.getElementById("msg");
         const freqEl = document.getElementById("freq");
         const errEl = document.getElementById("err");
+        
+        // Элементы холста визуализации
+        const canvas = document.getElementById("waveform");
+        const canvasCtx = canvas.getContext("2d");
 
         let audioCtx = null;
         let analyser = null;
@@ -126,13 +221,25 @@
         let cooldownUntil = 0;
         let listening = false;
         let pingEls = [];
+        let waveDataArray = null; // Для отрисовки волны
+
+        // Настройка размеров холста с учетом Retina-дисплеев
+        function resizeCanvas() {
+          const dpr = window.devicePixelRatio || 1;
+          const rect = canvas.getBoundingClientRect();
+          canvas.width = rect.width * dpr;
+          canvas.height = rect.height * dpr;
+          canvasCtx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
         function setListening(v) {
           listening = v;
           btn.textContent = v ? "Остановить" : "Начать слушать";
           tag.textContent = v ? "в эфире" : "готов";
           orb.classList.toggle("listening", v);
-          // add/remove animated rings
+          
           pingEls.forEach((el) => el.remove());
           pingEls = [];
           if (v) {
@@ -178,6 +285,17 @@
           analyser = null;
           setListening(false);
           msg.textContent = "Остановлено";
+          
+          // Очищаем экран визуализатора ровной линией
+          const w = canvas.width / (window.devicePixelRatio || 1);
+          const h = canvas.height / (window.devicePixelRatio || 1);
+          canvasCtx.clearRect(0, 0, w, h);
+          canvasCtx.lineWidth = 2;
+          canvasCtx.strokeStyle = '#24324f';
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(0, h / 2);
+          canvasCtx.lineTo(w, h / 2);
+          canvasCtx.stroke();
         }
 
         async function start() {
@@ -198,15 +316,20 @@
             source.connect(analyser);
 
             const bins = new Uint8Array(analyser.frequencyBinCount);
+            waveDataArray = new Uint8Array(analyser.fftSize); // Буфер для осциллограммы
+            
             const binHz = audioCtx.sampleRate / analyser.fftSize;
             const minBin = Math.floor(MIN_FREQ / binHz);
             const maxBin = Math.min(bins.length - 1, Math.ceil(MAX_FREQ / binHz));
 
             setListening(true);
             msg.textContent = "Слушаю... свистни!";
+            resizeCanvas();
 
             const loop = () => {
               if (!analyser) return;
+              
+              // 1. АНАЛИЗ ЧАСТОТ ДЛЯ СВИСТА
               analyser.getByteFrequencyData(bins);
               let peakBin = -1, peakVal = 0;
               for (let i = minBin; i <= maxBin; i++) {
@@ -225,6 +348,46 @@
                   playWhistle(f);
                 }
               }
+              
+              // 2. ОТРИСОВКА ЖИВОЙ ВОЛНЫ ЗВУКА
+              analyser.getByteTimeDomainData(waveDataArray);
+              const w = canvas.width / (window.devicePixelRatio || 1);
+              const h = canvas.height / (window.devicePixelRatio || 1);
+              
+              canvasCtx.clearRect(0, 0, w, h);
+              
+              // Рисуем сетку на заднем фоне визуализатора для стиля
+              canvasCtx.lineWidth = 1;
+              canvasCtx.strokeStyle = 'rgba(36, 50, 79, 0.3)';
+              for(let i = 0; i < w; i += 30) {
+                canvasCtx.beginPath(); canvasCtx.moveTo(i, 0); canvasCtx.lineTo(i, h); canvasCtx.stroke();
+              }
+              for(let j = 0; j < h; j += 30) {
+                canvasCtx.beginPath(); canvasCtx.moveTo(0, j); canvasCtx.lineTo(w, j); canvasCtx.stroke();
+              }
+
+              // Меняем цвет линии, если идет «кулдаун» (приложение отвечает на свист)
+              canvasCtx.lineWidth = 2.5;
+              canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : '#7c9cff';
+              
+              canvasCtx.beginPath();
+              const sliceWidth = w / waveDataArray.length;
+              let x = 0;
+              
+              for (let i = 0; i < waveDataArray.length; i++) {
+                const v = waveDataArray[i] / 128.0;
+                const y = (v * h) / 2;
+                if (i === 0) {
+                  canvasCtx.moveTo(x, y);
+                } else {
+                  canvasCtx.lineTo(x, y);
+                }
+                x += sliceWidth;
+              }
+              
+              canvasCtx.lineTo(w, h / 2);
+              canvasCtx.stroke();
+
               raf = requestAnimationFrame(loop);
             };
             raf = requestAnimationFrame(loop);
@@ -237,6 +400,9 @@
 
         btn.addEventListener("click", () => (listening ? stop() : start()));
         window.addEventListener("pagehide", stop);
+        
+        // Рисуем начальную статическую линию при загрузке
+        stop();
       })();
     </script>
   </body>
