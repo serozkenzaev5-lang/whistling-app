@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Свист-Эхо — приложение, которое отвечает свистом</title>
+    <title>Whistle-Echo — The App That Whistles Back</title>
     <meta
       name="description"
-      content="Свистни в микрофон — приложение услышит свист и ответит свистом той же частоты."
+      content="Whistle into your microphone — the app will detect the pitch and reply with a whistle of the exact same frequency."
     />
     <meta name="theme-color" content="#0f172a" />
     <style>
@@ -55,6 +55,33 @@
         background: radial-gradient(circle at 50% -20%, rgba(27, 39, 73, 0.6) 0%, transparent 70%);
         z-index: 1;
         pointer-events: none;
+      }
+
+      /* Переключатель языков */
+      .lang-switcher {
+        position: absolute;
+        top: 1rem;
+        right: 1.25rem;
+        z-index: 10;
+        display: flex;
+        gap: 0.25rem;
+        background: rgba(19, 28, 51, 0.5);
+        border: 1px solid var(--border);
+        padding: 0.25rem;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+      }
+      .lang-btn {
+        appearance: none; border: 0; background: transparent;
+        color: var(--muted); font-size: 0.75rem; font-weight: 700;
+        padding: 0.35rem 0.65rem; border-radius: 15px; cursor: pointer;
+        transition: color .2s, background .2s;
+        text-transform: uppercase;
+      }
+      .lang-btn:hover { color: var(--text); }
+      .lang-btn.active {
+        background: var(--primary);
+        color: var(--primary-ink);
       }
       
       .main-container {
@@ -225,12 +252,9 @@
           align-items: stretch;
           gap: 4rem;
         }
-        .control-panel {
-          justify-content: center;
-        }
-        canvas#waveform {
-          height: 180px;
-        }
+        .control-panel { justify-content: center; }
+        canvas#waveform { height: 180px; }
+        .lang-switcher { top: 1.5rem; right: 2rem; }
       }
     </style>
   </head>
@@ -239,10 +263,17 @@
     <canvas id="bg-canvas"></canvas>
     <div class="bg-overlay"></div>
 
+    <!-- Переключатель языков -->
+    <div class="lang-switcher">
+      <button class="lang-btn active" onclick="setLanguage('en')">EN</button>
+      <button class="lang-btn" onclick="setLanguage('ru')">RU</button>
+      <button class="lang-btn" onclick="setLanguage('uz')">UZ</button>
+    </div>
+
     <div class="main-container">
       <header>
-        <h1>Свист-Эхо</h1>
-        <p>Приложение услышит ваш свист и ответит свистом той же частоты.</p>
+        <h1 id="title">Whistle-Echo</h1>
+        <p id="subtitle">The app will hear your whistle and reply with the exact same frequency.</p>
       </header>
 
       <div class="content-layout">
@@ -250,14 +281,14 @@
           <div id="orb" class="orb" aria-hidden="true">
             <div style="text-align:center; position:relative;">
               <div class="emoji">🎵</div>
-              <div id="tag" class="tag">готов</div>
+              <div id="tag" class="tag">READY</div>
             </div>
           </div>
 
-          <button id="toggle" class="action">Начать слушать</button>
+          <button id="toggle" class="action">Start Listening</button>
 
           <div class="status">
-            <p id="msg" class="msg">Нажми кнопку и разреши доступ к микрофону</p>
+            <p id="msg" class="msg">Click the button and grant microphone access</p>
             <p id="freq" class="freq" hidden></p>
             <p id="err" class="err" hidden></p>
           </div>
@@ -266,322 +297,389 @@
         <div class="right-column">
           <div class="visualizer-container">
             <div class="visualizer-title">
-              <span>DSP Анализатор частоты</span>
+              <span id="dsp-title">DSP Frequency Analyzer</span>
               <div id="ind" class="status-indicator"></div>
             </div>
             <canvas id="waveform"></canvas>
           </div>
 
           <div class="spec-panel">
-            <div class="spec-item">Диапазон: <span>800-4000 Гц</span></div>
-            <div class="spec-item">Порог: <span>160 магнитуд</span></div>
-            <div class="spec-item">Задержка: <span>900 мс</span></div>
-            <div class="spec-item">FFT Буфер: <span>4096 сэмплов</span></div>
+            <div class="spec-item"><span id="lbl-range">Range</span>: <span>800-4000 Hz</span></div>
+            <div class="spec-item"><span id="lbl-thresh">Threshold</span>: <span>160 mag</span></div>
+            <div class="spec-item"><span id="lbl-delay">Delay</span>: <span>900 ms</span></div>
+            <div class="spec-item"><span id="lbl-fft">FFT Buffer</span>: <span>4096 smpl</span></div>
           </div>
         </div>
       </div>
 
-      <footer>Совет: свисти чётко и держи телефон или микрофон в 10–20 см. Лучше всего работает в тишине.</footer>
+      <footer id="footer-text">Tip: Whistle clearly and keep your microphone 10–20 cm away. Works best in quiet rooms.</footer>
     </div>
 
     <script>
-      (function () {
-        const MIN_FREQ = 800;
-        const MAX_FREQ = 4000;
-        const MAGNITUDE_THRESHOLD = 160;
-        const COOLDOWN_MS = 900;
-
-        const orb = document.getElementById("orb");
-        const tag = document.getElementById("tag");
-        const btn = document.getElementById("toggle");
-        const msg = document.getElementById("msg");
-        const freqEl = document.getElementById("freq");
-        const errEl = document.getElementById("err");
-        const ind = document.getElementById("ind");
-        
-        const canvas = document.getElementById("waveform");
-        const canvasCtx = canvas.getContext("2d");
-
-        // Элементы фонового холста
-        const bgCanvas = document.getElementById("bg-canvas");
-        const bgCtx = bgCanvas.getContext("2d");
-
-        let audioCtx = null;
-        let analyser = null;
-        let stream = null;
-        let raf = null;
-        let cooldownUntil = 0;
-        let listening = false;
-        let pingEls = [];
-        let waveDataArray = null;
-
-        // Система фоновых аудио-частиц
-        let particles = [];
-        const PARTICLE_COUNT = window.innerWidth > 768 ? 60 : 25; // меньше частиц на телефонах
-
-        function initParticles() {
-          particles = [];
-          for (let i = 0; i < PARTICLE_COUNT; i++) {
-            particles.push({
-              x: Math.random() * bgCanvas.width,
-              y: Math.random() * bgCanvas.height,
-              size: Math.random() * 2 + 0.5,
-              speedX: (Math.random() - 0.5) * 0.3,
-              speedY: -Math.random() * 0.5 - 0.2,
-              alpha: Math.random() * 0.5 + 0.1,
-              baseAlpha: Math.random() * 0.4 + 0.1
-            });
-          }
+      // Словарь переводов
+      const translations = {
+        en: {
+          title: "Whistle-Echo",
+          subtitle: "The app will hear your whistle and reply with the exact same frequency.",
+          tagReady: "READY",
+          tagLive: "LIVE",
+          btnStart: "Start Listening",
+          btnStop: "Stop Listening",
+          msgInit: "Click the button and grant microphone access",
+          msgListening: "Listening... whistle now!",
+          msgAnswering: "Heard whistle ~{freq} Hz — replying!",
+          msgStopped: "Stopped",
+          msgError: "Error",
+          dspTitle: "DSP Frequency Analyzer",
+          lblRange: "Range",
+          lblThresh: "Threshold",
+          lblDelay: "Delay",
+          lblFFT: "FFT Buffer",
+          footer: "Tip: Whistle clearly and keep your microphone 10–20 cm away. Works best in quiet rooms.",
+          errMic: "Could not access microphone"
+        },
+        ru: {
+          title: "Свист-Эхо",
+          subtitle: "Приложение услышит ваш свист и ответит свистом той же частоты.",
+          tagReady: "ГОТОВ",
+          tagLive: "В ЭФИРЕ",
+          btnStart: "Начать слушать",
+          btnStop: "Остановить",
+          msgInit: "Нажми кнопку и разреши доступ к микрофону",
+          msgListening: "Слушаю... свистни!",
+          msgAnswering: "Услышал свист ~{freq} Гц — отвечаю!",
+          msgStopped: "Остановлено",
+          msgError: "Ошибка",
+          dspTitle: "DSP Анализатор частоты",
+          lblRange: "Диапазон",
+          lblThresh: "Порог",
+          lblDelay: "Задержка",
+          lblFFT: "FFT Буфер",
+          footer: "Совет: свисти чётко и держи микрофон в 10–20 см. Лучше всего работает в тишине.",
+          errMic: "Не удалось получить доступ к микрофону"
+        },
+        uz: {
+          title: "Whistle-Echo",
+          subtitle: "Ilova xoshtagingizni eshitadi va xuddi shu chastotada javob qaytaradi.",
+          tagReady: "TAYYOR",
+          tagLive: "EFIRDA",
+          btnStart: "Tinglashni boshlash",
+          btnStop: "To'xtatish",
+          msgInit: "Tugmani bosing va mikrofonga ruxsat bering",
+          msgListening: "Eshityapman... xushtak chaling!",
+          msgAnswering: "~{freq} Gs li xushtak eshitildi — javob beryapman!",
+          msgStopped: "To'xtatildi",
+          msgError: "Xatolik",
+          dspTitle: "DSP Chastota analizatori",
+          lblRange: "Diapazon",
+          lblThresh: "Chegara",
+          lblDelay: "Kechikish",
+          lblFFT: "FFT Buferi",
+          footer: "Maslahat: Aniq xushtak chaling va mikrofonni 10–20 sm masofada tuting. Tinch xonada yaxshi ishlaydi.",
+          errMic: "Mikrofonga ulanib bo'lmadi"
         }
+      };
 
-        function resizeCanvases() {
-          const dpr = window.devicePixelRatio || 1;
-          
-          // Ресайз главного анализатора
-          const rect = canvas.getBoundingClientRect();
-          canvas.width = rect.width * dpr;
-          canvas.height = rect.height * dpr;
-          canvasCtx.scale(dpr, dpr);
+      let currentLang = 'en'; // Дефолтный язык — английский
 
-          // Ресайз фонового холста (на весь экран)
-          bgCanvas.width = window.innerWidth;
-          bgCanvas.height = window.innerHeight;
-          initParticles();
-        }
-        window.addEventListener('resize', resizeCanvases);
+      const MIN_FREQ = 800;
+      const MAX_FREQ = 4000;
+      const MAGNITUDE_THRESHOLD = 160;
+      const COOLDOWN_MS = 900;
+
+      const orb = document.getElementById("orb");
+      const tag = document.getElementById("tag");
+      const btn = document.getElementById("toggle");
+      const msg = document.getElementById("msg");
+      const freqEl = document.getElementById("freq");
+      const errEl = document.getElementById("err");
+      const ind = document.getElementById("ind");
+      
+      const canvas = document.getElementById("waveform");
+      const canvasCtx = canvas.getContext("2d");
+      const bgCanvas = document.getElementById("bg-canvas");
+      const bgCtx = bgCanvas.getContext("2d");
+
+      let audioCtx = null;
+      let analyser = null;
+      let stream = null;
+      let raf = null;
+      let cooldownUntil = 0;
+      let listening = false;
+      let pingEls = [];
+      let waveDataArray = null;
+      let particles = [];
+      const PARTICLE_COUNT = window.innerWidth > 768 ? 60 : 25;
+
+      // Функция динамической смены языка интерфейса
+      window.setLanguage = function(lang) {
+        currentLang = lang;
         
-        // Начальная инициализация размеров
+        // Обновляем активную кнопку переключателя
+        document.querySelectorAll('.lang-btn').forEach(b => {
+          b.classList.toggle('active', b.textContent.toLowerCase() === lang);
+        });
+
+        // Замена статичного текста
+        const t = translations[lang];
+        document.getElementById("title").textContent = t.title;
+        document.getElementById("subtitle").textContent = t.subtitle;
+        document.getElementById("dsp-title").textContent = t.dspTitle;
+        document.getElementById("lbl-range").textContent = t.lblRange;
+        document.getElementById("lbl-thresh").textContent = t.lblThresh;
+        document.getElementById("lbl-delay").textContent = t.lblDelay;
+        document.getElementById("lbl-fft").textContent = t.lblFFT;
+        document.getElementById("footer-text").textContent = t.footer;
+
+        // Обновление интерактивных состояний, если они сейчас активны
+        tag.textContent = listening ? t.tagLive : t.tagReady;
+        btn.textContent = listening ? t.btnStop : t.btnStart;
+        
+        if (!listening) {
+          msg.textContent = msg.textContent.includes("доступ") || msg.textContent.includes("grant") || msg.textContent.includes("ruxsat") ? t.msgInit : t.msgStopped;
+        }
+      };
+
+      function initParticles() {
+        particles = [];
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          particles.push({
+            x: Math.random() * bgCanvas.width,
+            y: Math.random() * bgCanvas.height,
+            size: Math.random() * 2 + 0.5,
+            speedX: (Math.random() - 0.5) * 0.3,
+            speedY: -Math.random() * 0.5 - 0.2,
+            alpha: Math.random() * 0.5 + 0.1,
+            baseAlpha: Math.random() * 0.4 + 0.1
+          });
+        }
+      }
+
+      function resizeCanvases() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvasCtx.scale(dpr, dpr);
+
         bgCanvas.width = window.innerWidth;
         bgCanvas.height = window.innerHeight;
         initParticles();
-        resizeCanvases();
+      }
+      window.addEventListener('resize', resizeCanvases);
+      
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+      initParticles();
 
-        function setListening(v) {
-          listening = v;
-          btn.textContent = v ? "Остановить" : "Начать слушать";
-          tag.textContent = v ? "в эфире" : "готов";
-          orb.classList.toggle("listening", v);
-          
-          if(v) ind.classList.add("active");
-          else ind.classList.remove("active");
-          
-          pingEls.forEach((el) => el.remove());
-          pingEls = [];
-          if (v) {
-            const ping = document.createElement("span"); ping.className = "ping";
-            const pulse = document.createElement("span"); pulse.className = "pulse";
-            orb.prepend(ping, pulse);
-            pingEls = [ping, pulse];
+      function setListening(v) {
+        listening = v;
+        const t = translations[currentLang];
+        btn.textContent = v ? t.btnStop : t.btnStart;
+        tag.textContent = v ? t.tagLive : t.tagReady;
+        orb.classList.toggle("listening", v);
+        
+        if(v) ind.classList.add("active");
+        else ind.classList.remove("active");
+        
+        pingEls.forEach((el) => el.remove());
+        pingEls = [];
+        if (v) {
+          const ping = document.createElement("span"); ping.className = "ping";
+          const pulse = document.createElement("span"); pulse.className = "pulse";
+          orb.prepend(ping, pulse);
+          pingEls = [ping, pulse];
+        }
+      }
+
+      function showError(text) {
+        if (!text) { errEl.hidden = true; return; }
+        errEl.textContent = text; errEl.hidden = false;
+      }
+
+      function playWhistle(freq) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        const now = audioCtx.currentTime;
+        const dur = 0.55;
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.05);
+        gain.gain.linearRampToValueAtTime(0.35, now + dur - 0.1);
+        gain.gain.linearRampToValueAtTime(0, now + dur);
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        lfo.frequency.value = 5;
+        lfoGain.gain.value = freq * 0.01;
+        lfo.connect(lfoGain).connect(osc.frequency);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now); lfo.start(now);
+        osc.stop(now + dur); lfo.stop(now + dur);
+      }
+
+      function stop() {
+        if (raf) cancelAnimationFrame(raf);
+        raf = null;
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+        analyser = null;
+        setListening(false);
+        msg.textContent = translations[currentLang].msgStopped;
+        
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
+        canvasCtx.clearRect(0, 0, w, h);
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = '#24324f';
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(0, h / 2);
+        canvasCtx.lineTo(w, h / 2);
+        canvasCtx.stroke();
+      }
+
+      function renderBackground(audioIntensity = 0) {
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        bgCtx.lineWidth = 1;
+        bgCtx.strokeStyle = 'rgba(36, 50, 79, 0.08)';
+        const gridSize = 50;
+        for (let x = 0; x < bgCanvas.width; x += gridSize) {
+          bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, bgCanvas.height); bgCtx.stroke();
+        }
+        for (let y = 0; y < bgCanvas.height; y += gridSize) {
+          bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(bgCanvas.width, y); bgCtx.stroke();
+        }
+
+        for (let i = 0; i < particles.length; i++) {
+          let p = particles[i];
+          const currentSpeedY = p.speedY * (1 + audioIntensity * 3);
+          const currentAlpha = Math.min(0.8, p.baseAlpha + audioIntensity * 0.5);
+          p.y += currentSpeedY;
+          p.x += p.speedX;
+          if (p.y < -10) {
+            p.y = bgCanvas.height + 10;
+            p.x = Math.random() * bgCanvas.width;
           }
+          bgCtx.beginPath();
+          bgCtx.arc(p.x, p.y, p.size * (1 + audioIntensity * 1.5), 0, Math.PI * 2);
+          bgCtx.fillStyle = audioIntensity > 0.6 ? `rgba(255, 122, 122, ${currentAlpha})` : `rgba(124, 156, 255, ${currentAlpha})`;
+          bgCtx.fill();
         }
+      }
 
-        function showError(text) {
-          if (!text) { errEl.hidden = true; return; }
-          errEl.textContent = text; errEl.hidden = false;
-        }
+      async function start() {
+        showError(null);
+        const t = translations[currentLang];
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          audioCtx = audioCtx || new AC();
+          if (audioCtx.state === "suspended") await audioCtx.resume();
 
-        function playWhistle(freq) {
-          if (!audioCtx) return;
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = "sine";
-          osc.frequency.value = freq;
-          const now = audioCtx.currentTime;
-          const dur = 0.55;
-          gain.gain.setValueAtTime(0, now);
-          gain.gain.linearRampToValueAtTime(0.35, now + 0.05);
-          gain.gain.linearRampToValueAtTime(0.35, now + dur - 0.1);
-          gain.gain.linearRampToValueAtTime(0, now + dur);
-          const lfo = audioCtx.createOscillator();
-          const lfoGain = audioCtx.createGain();
-          lfo.frequency.value = 5;
-          lfoGain.gain.value = freq * 0.01;
-          lfo.connect(lfoGain).connect(osc.frequency);
-          osc.connect(gain).connect(audioCtx.destination);
-          osc.start(now); lfo.start(now);
-          osc.stop(now + dur); lfo.stop(now + dur);
-        }
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          });
 
-        function stop() {
-          if (raf) cancelAnimationFrame(raf);
-          raf = null;
-          if (stream) stream.getTracks().forEach((t) => t.stop());
-          stream = null;
-          analyser = null;
-          setListening(false);
-          msg.textContent = "Остановлено";
+          const source = audioCtx.createMediaStreamSource(stream);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 4096;
+          analyser.smoothingTimeConstant = 0.3;
+          source.connect(analyser);
+
+          const bins = new Uint8Array(analyser.frequencyBinCount);
+          waveDataArray = new Uint8Array(analyser.fftSize);
           
-          // Сброс линии осциллографа
-          const w = canvas.width / (window.devicePixelRatio || 1);
-          const h = canvas.height / (window.devicePixelRatio || 1);
-          canvasCtx.clearRect(0, 0, w, h);
-          canvasCtx.lineWidth = 2;
-          canvasCtx.strokeStyle = '#24324f';
-          canvasCtx.beginPath();
-          canvasCtx.moveTo(0, h / 2);
-          canvasCtx.lineTo(w, h / 2);
-          canvasCtx.stroke();
-        }
+          const binHz = audioCtx.sampleRate / analyser.fftSize;
+          const minBin = Math.floor(MIN_FREQ / binHz);
+          const maxBin = Math.min(bins.length - 1, Math.ceil(MAX_FREQ / binHz));
 
-        // Рендеринг исключительно фонового декора (работает всегда автономно для плавности)
-        function renderBackground(audioIntensity = 0) {
-          bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-          
-          // Статичная сетка киберпанка
-          bgCtx.lineWidth = 1;
-          bgCtx.strokeStyle = 'rgba(36, 50, 79, 0.08)';
-          const gridSize = 50;
-          for (let x = 0; x < bgCanvas.width; x += gridSize) {
-            bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, bgCanvas.height); bgCtx.stroke();
-          }
-          for (let y = 0; y < bgCanvas.height; y += gridSize) {
-            bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(bgCanvas.width, y); bgCtx.stroke();
-          }
+          setListening(true);
+          msg.textContent = t.msgListening;
+          resizeCanvases();
 
-          // Анимация летающих частиц звука
-          for (let i = 0; i < particles.length; i++) {
-            let p = particles[i];
+          const loop = () => {
+            if (!analyser) return;
             
-            // Если звук громкий, частицы ускоряются и светятся сильнее
-            const currentSpeedY = p.speedY * (1 + audioIntensity * 3);
-            const currentAlpha = Math.min(0.8, p.baseAlpha + audioIntensity * 0.5);
+            analyser.getByteFrequencyData(bins);
+            let peakBin = -1, peakVal = 0;
+            let totalVolume = 0;
             
-            p.y += currentSpeedY;
-            p.x += p.speedX;
+            for (let i = minBin; i <= maxBin; i++) {
+              totalVolume += bins[i];
+              if (bins[i] > peakVal) { peakVal = bins[i]; peakBin = i; }
+            }
+            
+            const avgVolume = totalVolume / (maxBin - minBin);
+            const intensity = Math.min(1, avgVolume / 120);
 
-            // Возврат частиц, если они улетели за верхний край экрана
-            if (p.y < -10) {
-              p.y = bgCanvas.height + 10;
-              p.x = Math.random() * bgCanvas.width;
+            const now = performance.now();
+            if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD && now > cooldownUntil) {
+              const neighborAvg =
+                (bins[Math.max(minBin, peakBin - 10)] + bins[Math.min(maxBin, peakBin + 10)]) / 2;
+              if (peakVal - neighborAvg > 30) {
+                const f = peakBin * binHz;
+                const roundedF = Math.round(f);
+                freqEl.hidden = false;
+                freqEl.textContent = (currentLang === 'ru' ? "Последняя частота: " : currentLang === 'uz' ? "So'nggi chastota: " : "Last Frequency: ") + roundedF + " Hz";
+                msg.textContent = translations[currentLang].msgAnswering.replace("{freq}", roundedF);
+                cooldownUntil = now + COOLDOWN_MS;
+                playWhistle(f);
+              }
+            }
+            
+            analyser.getByteTimeDomainData(waveDataArray);
+            const w = canvas.width / (window.devicePixelRatio || 1);
+            const h = canvas.height / (window.devicePixelRatio || 1);
+            
+            canvasCtx.clearRect(0, 0, w, h);
+            canvasCtx.lineWidth = 1;
+            canvasCtx.strokeStyle = 'rgba(36, 50, 79, 0.25)';
+            for(let i = 0; i < w; i += 40) {
+              canvasCtx.beginPath(); canvasCtx.moveTo(i, 0); canvasCtx.lineTo(i, h); canvasCtx.stroke();
+            }
+            for(let j = 0; j < h; j += 30) {
+              canvasCtx.beginPath(); canvasCtx.moveTo(0, j); canvasCtx.lineTo(w, j); canvasCtx.stroke();
             }
 
-            bgCtx.beginPath();
-            bgCtx.arc(p.x, p.y, p.size * (1 + audioIntensity * 1.5), 0, Math.PI * 2);
-            bgCtx.fillStyle = audioIntensity > 0.6 ? `rgba(255, 122, 122, ${currentAlpha})` : `rgba(124, 156, 255, ${currentAlpha})`;
-            bgCtx.fill();
-          }
-        }
-
-        async function start() {
-          showError(null);
-          try {
-            const AC = window.AudioContext || window.webkitAudioContext;
-            audioCtx = audioCtx || new AC();
-            if (audioCtx.state === "suspended") await audioCtx.resume();
-
-            stream = await navigator.mediaDevices.getUserMedia({
-              audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-            });
-
-            const source = audioCtx.createMediaStreamSource(stream);
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 4096;
-            analyser.smoothingTimeConstant = 0.3;
-            source.connect(analyser);
-
-            const bins = new Uint8Array(analyser.frequencyBinCount);
-            waveDataArray = new Uint8Array(analyser.fftSize);
+            canvasCtx.lineWidth = 2.5;
+            canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : '#7c9cff';
             
-            const binHz = audioCtx.sampleRate / analyser.fftSize;
-            const minBin = Math.floor(MIN_FREQ / binHz);
-            const maxBin = Math.min(bins.length - 1, Math.ceil(MAX_FREQ / binHz));
+            canvasCtx.beginPath();
+            const sliceWidth = w / waveDataArray.length;
+            let x = 0;
+            for (let i = 0; i < waveDataArray.length; i++) {
+              const v = waveDataArray[i] / 128.0;
+              const y = (v * h) / 2;
+              if (i === 0) canvasCtx.moveTo(x, y);
+              else canvasCtx.lineTo(x, y);
+              x += sliceWidth;
+            }
+            canvasCtx.lineTo(w, h / 2);
+            canvasCtx.stroke();
 
-            setListening(true);
-            msg.textContent = "Слушаю... свистни!";
-            resizeCanvases();
-
-            const loop = () => {
-              if (!analyser) return;
-              
-              // 1. АНАЛИЗ ЧАСТОТ ДЛЯ СВИСТА
-              analyser.getByteFrequencyData(bins);
-              let peakBin = -1, peakVal = 0;
-              let totalVolume = 0; // Для расчета общей громкости под фон
-              
-              for (let i = minBin; i <= maxBin; i++) {
-                totalVolume += bins[i];
-                if (bins[i] > peakVal) { peakVal = bins[i]; peakBin = i; }
-              }
-              
-              // Вычисляем интенсивность шума от 0 до 1
-              const avgVolume = totalVolume / (maxBin - minBin);
-              const intensity = Math.min(1, avgVolume / 120);
-
-              const now = performance.now();
-              if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD && now > cooldownUntil) {
-                const neighborAvg =
-                  (bins[Math.max(minBin, peakBin - 10)] + bins[Math.min(maxBin, peakBin + 10)]) / 2;
-                if (peakVal - neighborAvg > 30) {
-                  const f = peakBin * binHz;
-                  freqEl.hidden = false;
-                  freqEl.textContent = "Последняя частота: " + Math.round(f) + " Гц";
-                  msg.textContent = "Услышал свист ~" + Math.round(f) + " Гц — отвечаю!";
-                  cooldownUntil = now + COOLDOWN_MS;
-                  playWhistle(f);
-                }
-              }
-              
-              // 2. ОТРИСОВКА ЖИВОЙ ВОЛНЫ ЗВУКА
-              analyser.getByteTimeDomainData(waveDataArray);
-              const w = canvas.width / (window.devicePixelRatio || 1);
-              const h = canvas.height / (window.devicePixelRatio || 1);
-              
-              canvasCtx.clearRect(0, 0, w, h);
-              
-              canvasCtx.lineWidth = 1;
-              canvasCtx.strokeStyle = 'rgba(36, 50, 79, 0.25)';
-              for(let i = 0; i < w; i += 40) {
-                canvasCtx.beginPath(); canvasCtx.moveTo(i, 0); canvasCtx.lineTo(i, h); canvasCtx.stroke();
-              }
-              for(let j = 0; j < h; j += 30) {
-                canvasCtx.beginPath(); canvasCtx.moveTo(0, j); canvasCtx.lineTo(w, j); canvasCtx.stroke();
-              }
-
-              canvasCtx.lineWidth = 2.5;
-              canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : '#7c9cff';
-              
-              canvasCtx.beginPath();
-              const sliceWidth = w / waveDataArray.length;
-              let x = 0;
-              
-              for (let i = 0; i < waveDataArray.length; i++) {
-                const v = waveDataArray[i] / 128.0;
-                const y = (v * h) / 2;
-                if (i === 0) canvasCtx.moveTo(x, y);
-                else canvasCtx.lineTo(x, y);
-                x += sliceWidth;
-              }
-              
-              canvasCtx.lineTo(w, h / 2);
-              canvasCtx.stroke();
-
-              // 3. ОБНОВЛЕНИЕ ФОНА С УЧЕТОМ ГРОМКОСТИ ЗВУКА
-              renderBackground(intensity);
-
-              raf = requestAnimationFrame(loop);
-            };
+            renderBackground(intensity);
             raf = requestAnimationFrame(loop);
-          } catch (e) {
-            showError((e && e.message) || "Не удалось получить доступ к микрофону");
-            msg.textContent = "Ошибка";
-            setListening(false);
-          }
+          };
+          raf = requestAnimationFrame(loop);
+        } catch (e) {
+          showError(t.errMic);
+          msg.textContent = t.msgError;
+          setListening(false);
         }
+      }
 
-        // Анимация спокойного фона по умолчанию, когда приложение не слушает
-        function idleBackgroundLoop() {
-          if (!listening) {
-            renderBackground(0);
-          }
-          requestAnimationFrame(idleBackgroundLoop);
-        }
+      function idleBackgroundLoop() {
+        if (!listening) renderBackground(0);
+        requestAnimationFrame(idleBackgroundLoop);
+      }
 
-        btn.addEventListener("click", () => (listening ? stop() : start()));
-        window.addEventListener("pagehide", stop);
-        
-        stop();
-        idleBackgroundLoop(); // Запуск фонового декoра
-      })();
+      btn.addEventListener("click", () => (listening ? stop() : start()));
+      window.addEventListener("pagehide", stop);
+      
+      // Инициализация
+      resizeCanvases();
+      stop();
+      idleBackgroundLoop();
     </script>
   </body>
 </html>
