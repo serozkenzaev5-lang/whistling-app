@@ -4,15 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Whistle-Echo — The App That Whistles Back</title>
-    <meta
-      name="description"
-      content="Whistle into your microphone — the app will detect the pitch and reply with a whistle of the exact same frequency."
-    />
-    <meta name="theme-color" content="#0f172a" />
     <style>
       :root {
         --bg: #070c16;
-        --bg-2: #0b1220;
         --card: rgba(19, 28, 51, 0.6);
         --border: #1e293b;
         --text: #e6ecff;
@@ -38,7 +32,6 @@
         padding: 3rem 1.25rem;
       }
 
-      /* Живой фоновый холст для частиц */
       #bg-canvas {
         position: fixed;
         inset: 0;
@@ -48,7 +41,6 @@
         pointer-events: none;
       }
 
-      /* Градиентное свечение поверх частиц для мягкости */
       .bg-overlay {
         position: fixed;
         inset: 0;
@@ -57,7 +49,6 @@
         pointer-events: none;
       }
 
-      /* Переключатель языков */
       .lang-switcher {
         position: absolute;
         top: 1rem;
@@ -259,11 +250,9 @@
     </style>
   </head>
   <body>
-    <!-- Фоновые слои декора -->
     <canvas id="bg-canvas"></canvas>
     <div class="bg-overlay"></div>
 
-    <!-- Переключатель языков -->
     <div class="lang-switcher">
       <button class="lang-btn active" onclick="setLanguage('en')">EN</button>
       <button class="lang-btn" onclick="setLanguage('ru')">RU</button>
@@ -304,9 +293,9 @@
           </div>
 
           <div class="spec-panel">
-            <div class="spec-item"><span id="lbl-range">Range</span>: <span>800-4000 Hz</span></div>
-            <div class="spec-item"><span id="lbl-thresh">Threshold</span>: <span>160 mag</span></div>
-            <div class="spec-item"><span id="lbl-delay">Delay</span>: <span>900 ms</span></div>
+            <div class="spec-item"><span id="lbl-range">Range</span>: <span>1000-3800 Hz</span></div>
+            <div class="spec-item"><span id="lbl-thresh">Threshold</span>: <span>Strict Tone</span></div>
+            <div class="spec-item"><span id="lbl-delay">Delay</span>: <span>300ms Silence</span></div>
             <div class="spec-item"><span id="lbl-fft">FFT Buffer</span>: <span>4096 smpl</span></div>
           </div>
         </div>
@@ -316,7 +305,6 @@
     </div>
 
     <script>
-      // Словарь переводов
       const translations = {
         en: {
           title: "Whistle-Echo",
@@ -327,6 +315,7 @@
           btnStop: "Stop Listening",
           msgInit: "Click the button and grant microphone access",
           msgListening: "Listening... whistle now!",
+          msgRecording: "Hearing whistle...",
           msgAnswering: "Heard whistle ~{freq} Hz — replying!",
           msgStopped: "Stopped",
           msgError: "Error",
@@ -347,13 +336,14 @@
           btnStop: "Остановить",
           msgInit: "Нажми кнопку и разреши доступ к микрофону",
           msgListening: "Слушаю... свистни!",
+          msgRecording: "Записываю свист...",
           msgAnswering: "Услышал свист ~{freq} Гц — отвечаю!",
           msgStopped: "Остановлено",
           msgError: "Ошибка",
           dspTitle: "DSP Анализатор частоты",
           lblRange: "Диапазон",
           lblThresh: "Порог",
-          lblDelay: "Задержка",
+          lblDelay: "Пауза",
           lblFFT: "FFT Буфер",
           footer: "Совет: свисти чётко и держи микрофон в 10–20 см. Лучше всего работает в тишине.",
           errMic: "Не удалось получить доступ к микрофону"
@@ -367,6 +357,7 @@
           btnStop: "To'xtatish",
           msgInit: "Tugmani bosing va mikrofonga ruxsat bering",
           msgListening: "Eshityapman... xushtak chaling!",
+          msgRecording: "Xushtak yozib olinmoqda...",
           msgAnswering: "~{freq} Gs li xushtak eshitildi — javob beryapman!",
           msgStopped: "To'xtatildi",
           msgError: "Xatolik",
@@ -382,18 +373,20 @@
 
       let currentLang = 'en';
 
-      const MIN_FREQ = 800;
-      const MAX_FREQ = 4000;
-      const MAGNITUDE_THRESHOLD = 160;
-      const COOLDOWN_MS = 900;
-
-      // Новые константы для распознавания свиста и паузы
-      const WHISTLE_MIN_DURATION_MS = 150; // Минимальная продолжительность свиста, чтобы исключить щелчки
-      const SILENCE_AFTER_WHISTLE_MS = 200; // Пауза после окончания свиста перед ответом
+      // Фильтрация именно чистого свиста
+      const MIN_FREQ = 1000;
+      const MAX_FREQ = 3800;
+      const MAGNITUDE_THRESHOLD = 150;
+      
+      // Тайминги
+      const MIN_WHISTLE_DURATION_MS = 200; // Минимальный свист, чтобы не откликаться на щелчки
+      const SILENCE_REQUIRED_MS = 300;     // Пауза тишины ПОСЛЕ свиста перед ответом
+      const COOLDOWN_AFTER_REPLY_MS = 1000;// Пауза после ответа приложения
 
       let whistleStartTime = 0;
       let lastWhistleTime = 0;
-      let detectedFreqBuffer = [];
+      let freqSamples = [];
+      let cooldownUntil = 0;
 
       const orb = document.getElementById("orb");
       const tag = document.getElementById("tag");
@@ -412,7 +405,6 @@
       let analyser = null;
       let stream = null;
       let raf = null;
-      let cooldownUntil = 0;
       let listening = false;
       let pingEls = [];
       let waveDataArray = null;
@@ -421,7 +413,6 @@
 
       window.setLanguage = function(lang) {
         currentLang = lang;
-        
         document.querySelectorAll('.lang-btn').forEach(b => {
           b.classList.toggle('active', b.textContent.toLowerCase() === lang);
         });
@@ -440,7 +431,7 @@
         btn.textContent = listening ? t.btnStop : t.btnStart;
         
         if (!listening) {
-          msg.textContent = msg.textContent.includes("доступ") || msg.textContent.includes("grant") || msg.textContent.includes("ruxsat") ? t.msgInit : t.msgStopped;
+          msg.textContent = t.msgInit;
         }
       };
 
@@ -471,7 +462,6 @@
         initParticles();
       }
       window.addEventListener('resize', resizeCanvases);
-      
       bgCanvas.width = window.innerWidth;
       bgCanvas.height = window.innerHeight;
       initParticles();
@@ -508,16 +498,18 @@
         osc.type = "sine";
         osc.frequency.value = freq;
         const now = audioCtx.currentTime;
-        const dur = 0.55;
+        const dur = 0.5;
         gain.gain.setValueAtTime(0, now);
         gain.gain.linearRampToValueAtTime(0.35, now + 0.05);
         gain.gain.linearRampToValueAtTime(0.35, now + dur - 0.1);
         gain.gain.linearRampToValueAtTime(0, now + dur);
+        
         const lfo = audioCtx.createOscillator();
         const lfoGain = audioCtx.createGain();
         lfo.frequency.value = 5;
         lfoGain.gain.value = freq * 0.01;
         lfo.connect(lfoGain).connect(osc.frequency);
+        
         osc.connect(gain).connect(audioCtx.destination);
         osc.start(now); lfo.start(now);
         osc.stop(now + dur); lfo.stop(now + dur);
@@ -587,7 +579,7 @@
           const source = audioCtx.createMediaStreamSource(stream);
           analyser = audioCtx.createAnalyser();
           analyser.fftSize = 4096;
-          analyser.smoothingTimeConstant = 0.3;
+          analyser.smoothingTimeConstant = 0.2;
           source.connect(analyser);
 
           const bins = new Uint8Array(analyser.frequencyBinCount);
@@ -601,81 +593,86 @@
           msg.textContent = t.msgListening;
           resizeCanvases();
 
-          // Сброс служебных параметров при старте
           whistleStartTime = 0;
           lastWhistleTime = 0;
-          detectedFreqBuffer = [];
+          freqSamples = [];
 
           const loop = () => {
             if (!analyser) return;
             
             analyser.getByteFrequencyData(bins);
             let peakBin = -1, peakVal = 0;
-            let totalVolume = 0;
+            let totalVol = 0;
             
             for (let i = minBin; i <= maxBin; i++) {
-              totalVolume += bins[i];
+              totalVol += bins[i];
               if (bins[i] > peakVal) { peakVal = bins[i]; peakBin = i; }
             }
             
-            const avgVolume = totalVolume / (maxBin - minBin);
-            const intensity = Math.min(1, avgVolume / 120);
-
+            const avgVol = totalVol / (maxBin - minBin);
+            const intensity = Math.min(1, avgVol / 120);
             const now = performance.now();
-            let isWhistlingNow = false;
 
-            if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD && now > cooldownUntil) {
-              // Анализ остроты пика (фильтрация речи и широкого шума)
-              const neighborAvg =
-                (bins[Math.max(minBin, peakBin - 10)] + bins[Math.min(maxBin, peakBin + 10)]) / 2;
-              
-              // Чистый свист дает высокой узкий пик по сравнению с широким спектром шума
-              if (peakVal - neighborAvg > 45 && peakVal / (avgVolume + 1) > 3.0) {
-                isWhistlingNow = true;
-                const f = peakBin * binHz;
-                detectedFreqBuffer.push(f);
-                if (detectedFreqBuffer.length > 15) detectedFreqBuffer.shift(); // Накапливаем последние частоты
+            let isPureWhistle = false;
 
-                if (whistleStartTime === 0) whistleStartTime = now;
-                lastWhistleTime = now;
+            // Проверка: тональный чистый свист (высокий уединенный пик над шумом)
+            if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD) {
+              const leftNeighbor = bins[Math.max(minBin, peakBin - 12)];
+              const rightNeighbor = bins[Math.min(maxBin, peakBin + 12)];
+              const sideAvg = (leftNeighbor + rightNeighbor) / 2;
+
+              // Если пик в 3.5 раза выше фона вокруг — это чистый свист, а не речь/шум
+              if ((peakVal / (sideAvg + 1)) > 3.5 && (peakVal / (avgVol + 1)) > 4.0) {
+                isPureWhistle = true;
               }
             }
 
-            // Логика завершения свиста и выдержки паузы
             if (now > cooldownUntil) {
-              if (isWhistlingNow) {
-                msg.textContent = currentLang === 'ru' ? "Слушаю свист..." : currentLang === 'uz' ? "Xushtak eshitilmoqda..." : "Listening to whistle...";
-              } else if (whistleStartTime > 0) {
-                const whistleDuration = lastWhistleTime - whistleStartTime;
-                const silenceDuration = now - lastWhistleTime;
+              if (isPureWhistle) {
+                const currentFreq = peakBin * binHz;
+                freqSamples.push(currentFreq);
 
-                // Если человек досвистел, был зафиксирован свист нужной длительности и наступила пауза
-                if (whistleDuration >= WHISTLE_MIN_DURATION_MS && silenceDuration >= SILENCE_AFTER_WHISTLE_MS) {
-                  // Вычисляем среднюю частоту свиста
-                  const avgFreq = detectedFreqBuffer.reduce((a, b) => a + b, 0) / detectedFreqBuffer.length;
-                  const roundedF = Math.round(avgFreq);
+                if (whistleStartTime === 0) {
+                  whistleStartTime = now;
+                }
+                lastWhistleTime = now;
+                msg.textContent = translations[currentLang].msgRecording;
+              } else {
+                // Если сейчас тишина, но мы только что записывали свист
+                if (whistleStartTime > 0) {
+                  const whistleDuration = lastWhistleTime - whistleStartTime;
+                  const silenceDuration = now - lastWhistleTime;
 
-                  freqEl.hidden = false;
-                  freqEl.textContent = (currentLang === 'ru' ? "Последняя частота: " : currentLang === 'uz' ? "So'nggi chastota: " : "Last Frequency: ") + roundedF + " Hz";
-                  msg.textContent = translations[currentLang].msgAnswering.replace("{freq}", roundedF);
-                  
-                  cooldownUntil = now + COOLDOWN_MS;
-                  playWhistle(avgFreq);
+                  // Если свист длился достаточно долго и наступила пауза (человек закончил)
+                  if (whistleDuration >= MIN_WHISTLE_DURATION_MS && silenceDuration >= SILENCE_REQUIRED_MS) {
+                    // Берем среднюю частоту из сохраненных
+                    const avgFreq = freqSamples.reduce((a, b) => a + b, 0) / freqSamples.length;
+                    const roundedF = Math.round(avgFreq);
 
-                  // Сброс временных данных
-                  whistleStartTime = 0;
-                  lastWhistleTime = 0;
-                  detectedFreqBuffer = [];
-                } else if (silenceDuration > SILENCE_AFTER_WHISTLE_MS * 2) {
-                  // Слишком короткий шум или случайный звук — сбрасываем
-                  whistleStartTime = 0;
-                  lastWhistleTime = 0;
-                  detectedFreqBuffer = [];
-                  msg.textContent = t.msgListening;
+                    freqEl.hidden = false;
+                    freqEl.textContent = (currentLang === 'ru' ? "Частота: " : currentLang === 'uz' ? "Chastota: " : "Frequency: ") + roundedF + " Hz";
+                    msg.textContent = translations[currentLang].msgAnswering.replace("{freq}", roundedF);
+
+                    // Воспроизводим и включаем блокировку
+                    playWhistle(avgFreq);
+                    cooldownUntil = now + COOLDOWN_AFTER_REPLY_MS;
+
+                    // Сбрасываем записи
+                    whistleStartTime = 0;
+                    lastWhistleTime = 0;
+                    freqSamples = [];
+                  } else if (silenceDuration > SILENCE_REQUIRED_MS * 1.5) {
+                    // Короткий шум или человек бросил свистеть
+                    whistleStartTime = 0;
+                    lastWhistleTime = 0;
+                    freqSamples = [];
+                    msg.textContent = translations[currentLang].msgListening;
+                  }
                 }
               }
             }
-            
+
+            // Отрисовка осциллограммы
             analyser.getByteTimeDomainData(waveDataArray);
             const w = canvas.width / (window.devicePixelRatio || 1);
             const h = canvas.height / (window.devicePixelRatio || 1);
@@ -691,7 +688,7 @@
             }
 
             canvasCtx.lineWidth = 2.5;
-            canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : isWhistlingNow ? '#50e3c2' : '#7c9cff';
+            canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : isPureWhistle ? '#50e3c2' : '#7c9cff';
             
             canvasCtx.beginPath();
             const sliceWidth = w / waveDataArray.length;
@@ -725,7 +722,6 @@
       btn.addEventListener("click", () => (listening ? stop() : start()));
       window.addEventListener("pagehide", stop);
       
-      // Инициализация
       resizeCanvases();
       stop();
       idleBackgroundLoop();
