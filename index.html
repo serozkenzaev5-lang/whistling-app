@@ -380,12 +380,20 @@
         }
       };
 
-      let currentLang = 'en'; // Дефолтный язык — английский
+      let currentLang = 'en';
 
       const MIN_FREQ = 800;
       const MAX_FREQ = 4000;
       const MAGNITUDE_THRESHOLD = 160;
       const COOLDOWN_MS = 900;
+
+      // Новые константы для распознавания свиста и паузы
+      const WHISTLE_MIN_DURATION_MS = 150; // Минимальная продолжительность свиста, чтобы исключить щелчки
+      const SILENCE_AFTER_WHISTLE_MS = 200; // Пауза после окончания свиста перед ответом
+
+      let whistleStartTime = 0;
+      let lastWhistleTime = 0;
+      let detectedFreqBuffer = [];
 
       const orb = document.getElementById("orb");
       const tag = document.getElementById("tag");
@@ -411,16 +419,13 @@
       let particles = [];
       const PARTICLE_COUNT = window.innerWidth > 768 ? 60 : 25;
 
-      // Функция динамической смены языка интерфейса
       window.setLanguage = function(lang) {
         currentLang = lang;
         
-        // Обновляем активную кнопку переключателя
         document.querySelectorAll('.lang-btn').forEach(b => {
           b.classList.toggle('active', b.textContent.toLowerCase() === lang);
         });
 
-        // Замена статичного текста
         const t = translations[lang];
         document.getElementById("title").textContent = t.title;
         document.getElementById("subtitle").textContent = t.subtitle;
@@ -431,7 +436,6 @@
         document.getElementById("lbl-fft").textContent = t.lblFFT;
         document.getElementById("footer-text").textContent = t.footer;
 
-        // Обновление интерактивных состояний, если они сейчас активны
         tag.textContent = listening ? t.tagLive : t.tagReady;
         btn.textContent = listening ? t.btnStop : t.btnStart;
         
@@ -597,6 +601,11 @@
           msg.textContent = t.msgListening;
           resizeCanvases();
 
+          // Сброс служебных параметров при старте
+          whistleStartTime = 0;
+          lastWhistleTime = 0;
+          detectedFreqBuffer = [];
+
           const loop = () => {
             if (!analyser) return;
             
@@ -613,17 +622,57 @@
             const intensity = Math.min(1, avgVolume / 120);
 
             const now = performance.now();
+            let isWhistlingNow = false;
+
             if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD && now > cooldownUntil) {
+              // Анализ остроты пика (фильтрация речи и широкого шума)
               const neighborAvg =
                 (bins[Math.max(minBin, peakBin - 10)] + bins[Math.min(maxBin, peakBin + 10)]) / 2;
-              if (peakVal - neighborAvg > 30) {
+              
+              // Чистый свист дает высокой узкий пик по сравнению с широким спектром шума
+              if (peakVal - neighborAvg > 45 && peakVal / (avgVolume + 1) > 3.0) {
+                isWhistlingNow = true;
                 const f = peakBin * binHz;
-                const roundedF = Math.round(f);
-                freqEl.hidden = false;
-                freqEl.textContent = (currentLang === 'ru' ? "Последняя частота: " : currentLang === 'uz' ? "So'nggi chastota: " : "Last Frequency: ") + roundedF + " Hz";
-                msg.textContent = translations[currentLang].msgAnswering.replace("{freq}", roundedF);
-                cooldownUntil = now + COOLDOWN_MS;
-                playWhistle(f);
+                detectedFreqBuffer.push(f);
+                if (detectedFreqBuffer.length > 15) detectedFreqBuffer.shift(); // Накапливаем последние частоты
+
+                if (whistleStartTime === 0) whistleStartTime = now;
+                lastWhistleTime = now;
+              }
+            }
+
+            // Логика завершения свиста и выдержки паузы
+            if (now > cooldownUntil) {
+              if (isWhistlingNow) {
+                msg.textContent = currentLang === 'ru' ? "Слушаю свист..." : currentLang === 'uz' ? "Xushtak eshitilmoqda..." : "Listening to whistle...";
+              } else if (whistleStartTime > 0) {
+                const whistleDuration = lastWhistleTime - whistleStartTime;
+                const silenceDuration = now - lastWhistleTime;
+
+                // Если человек досвистел, был зафиксирован свист нужной длительности и наступила пауза
+                if (whistleDuration >= WHISTLE_MIN_DURATION_MS && silenceDuration >= SILENCE_AFTER_WHISTLE_MS) {
+                  // Вычисляем среднюю частоту свиста
+                  const avgFreq = detectedFreqBuffer.reduce((a, b) => a + b, 0) / detectedFreqBuffer.length;
+                  const roundedF = Math.round(avgFreq);
+
+                  freqEl.hidden = false;
+                  freqEl.textContent = (currentLang === 'ru' ? "Последняя частота: " : currentLang === 'uz' ? "So'nggi chastota: " : "Last Frequency: ") + roundedF + " Hz";
+                  msg.textContent = translations[currentLang].msgAnswering.replace("{freq}", roundedF);
+                  
+                  cooldownUntil = now + COOLDOWN_MS;
+                  playWhistle(avgFreq);
+
+                  // Сброс временных данных
+                  whistleStartTime = 0;
+                  lastWhistleTime = 0;
+                  detectedFreqBuffer = [];
+                } else if (silenceDuration > SILENCE_AFTER_WHISTLE_MS * 2) {
+                  // Слишком короткий шум или случайный звук — сбрасываем
+                  whistleStartTime = 0;
+                  lastWhistleTime = 0;
+                  detectedFreqBuffer = [];
+                  msg.textContent = t.msgListening;
+                }
               }
             }
             
@@ -642,7 +691,7 @@
             }
 
             canvasCtx.lineWidth = 2.5;
-            canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : '#7c9cff';
+            canvasCtx.strokeStyle = now < cooldownUntil ? '#ff7a7a' : isWhistlingNow ? '#50e3c2' : '#7c9cff';
             
             canvasCtx.beginPath();
             const sliceWidth = w / waveDataArray.length;
