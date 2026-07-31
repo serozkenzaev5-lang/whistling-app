@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Whistle-Echo (Fixed Delay Engine)</title>
+    <title>Whistle-Echo — The App That Whistles Back</title>
     <style>
       :root {
         --bg: #070c16;
@@ -23,171 +23,385 @@
         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: var(--text);
         background-color: var(--bg);
+        position: relative;
+        overflow-x: hidden;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: space-between;
         min-height: 100dvh;
-        padding: 2rem 1.25rem;
+        padding: 3rem 1.25rem;
       }
 
+      #bg-canvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .bg-overlay {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 50% -20%, rgba(27, 39, 73, 0.6) 0%, transparent 70%);
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .lang-switcher {
+        position: absolute;
+        top: 1rem;
+        right: 1.25rem;
+        z-index: 10;
+        display: flex;
+        gap: 0.25rem;
+        background: rgba(19, 28, 51, 0.5);
+        border: 1px solid var(--border);
+        padding: 0.25rem;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+      }
+      .lang-btn {
+        appearance: none; border: 0; background: transparent;
+        color: var(--muted); font-size: 0.75rem; font-weight: 700;
+        padding: 0.35rem 0.65rem; border-radius: 15px; cursor: pointer;
+        transition: color .2s, background .2s;
+        text-transform: uppercase;
+      }
+      .lang-btn:hover { color: var(--text); }
+      .lang-btn.active {
+        background: var(--primary);
+        color: var(--primary-ink);
+      }
+      
       .main-container {
         position: relative;
         z-index: 2;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2rem;
+        gap: 2.5rem;
         width: 100%;
-        max-width: 900px;
+        max-width: 1100px;
         margin: auto;
       }
       
       header { text-align: center; max-width: 36rem; }
       h1 { 
-        font-size: clamp(2rem, 5vw, 3rem); 
+        font-size: clamp(2.5rem, 6vw, 4rem); 
         margin: 0 0 .5rem; 
+        letter-spacing: -0.03em; 
         font-weight: 800;
         background: linear-gradient(135deg, #fff 30%, var(--primary));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
       }
-      header p { color: var(--muted); margin: 0; font-size: 1rem; }
+      header p { color: var(--muted); margin: 0; font-size: 1.15rem; }
+      
+      .content-layout {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2.5rem;
+        width: 100%;
+      }
       
       .control-panel {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1.25rem;
+        gap: 1.5rem;
         width: 100%;
         max-width: 24rem;
       }
 
       .orb {
         position: relative;
-        width: 12rem; height: 12rem;
+        width: 14rem; height: 14rem;
         border-radius: 999px;
-        border: 2px solid var(--border);
+        border: 1px solid var(--border);
         background: #111a2e;
         display: grid; place-items: center;
-        transition: all .3s ease;
+        transition: box-shadow .3s, border-color .3s, background .3s;
+        backdrop-filter: blur(8px);
       }
       .orb.listening {
-        border-color: var(--primary);
-        box-shadow: 0 0 50px -10px var(--primary);
+        border-color: rgba(124,156,255,.5);
+        background: rgba(124,156,255,.06);
+        box-shadow: 0 0 80px -10px var(--primary);
       }
-      .orb.captured {
-        border-color: var(--success);
-        box-shadow: 0 0 60px -5px var(--success);
+      .orb.holding {
+        border-color: rgba(80,227,194,.8);
+        background: rgba(80,227,194,.1);
+        box-shadow: 0 0 80px -5px var(--success);
       }
       .orb.cooldown {
-        border-color: var(--danger);
-        box-shadow: 0 0 40px -10px var(--danger);
+        border-color: rgba(255,122,122,.6);
+        background: rgba(255,122,122,.08);
+        box-shadow: 0 0 60px -10px var(--danger);
       }
-      .orb .emoji { font-size: 3rem; }
+      .orb .emoji { font-size: 3.5rem; }
       .orb .tag {
-        margin-top: .5rem; font-size: .75rem;
-        text-transform: uppercase; letter-spacing: .15em;
+        margin-top: .5rem; font-size: .7rem;
+        text-transform: uppercase; letter-spacing: .2em;
         color: var(--muted); font-weight: 700;
       }
+      .ping, .pulse {
+        position: absolute; border-radius: 999px; pointer-events: none;
+      }
+      .ping { inset: 0; background: rgba(124,156,255,.12); animation: ping 1.6s cubic-bezier(0,0,.2,1) infinite; }
+      .pulse { inset: 1rem; background: rgba(124,156,255,.06); animation: pulse 2s ease-in-out infinite; }
+      @keyframes ping { 75%,100% { transform: scale(1.4); opacity: 0; } }
+      @keyframes pulse { 0%,100% { opacity:.6 } 50% { opacity:1 } }
       
       button.action {
         appearance: none; border: 0; cursor: pointer;
         background: var(--primary); color: var(--primary-ink);
-        font: inherit; font-weight: 700;
-        padding: 0.9rem 2rem; border-radius: 999px;
-        box-shadow: 0 10px 25px -5px rgba(124,156,255,.5);
-        transition: transform .1s, opacity .2s;
-        width: 100%; max-width: 16rem;
+        font: inherit; font-weight: 700; letter-spacing: 0.02em;
+        padding: 1rem 2.5rem; border-radius: 999px;
+        box-shadow: 0 10px 30px -10px rgba(124,156,255,.6);
+        transition: transform .1s ease, opacity .2s, box-shadow .2s;
+        width: 100%;
+        max-width: 16rem;
       }
+      button.action:hover { opacity: .95; box-shadow: 0 12px 35px -8px rgba(124,156,255,.8); }
       button.action:active { transform: scale(.97); }
       
-      .status { text-align: center; min-height: 4rem; }
-      .status .msg { color: var(--text); font-weight: 600; margin: 0; font-size: 1.1rem; }
-      .status .freq { color: var(--primary); margin: .3rem 0 0; font-size: 1rem; font-weight: 700; }
+      .status { min-height: 4.5rem; text-align: center; }
+      .status .msg { color: var(--text); font-weight: 500; margin: 0; font-size: 1.05rem; }
+      .status .freq { color: var(--primary); margin: .4rem 0 0; font-size: 0.95rem; font-weight: 600; text-shadow: 0 0 10px rgba(124,156,255,0.3); }
+      .status .err { color: var(--danger); margin: .4rem 0 0; font-size: .85rem; }
+      
+      .right-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 500px;
+      }
 
-      .settings-card {
+      .visualizer-container {
+        position: relative;
+        width: 100%;
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
         padding: 1.25rem;
-        width: 100%;
-        max-width: 500px;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
+        backdrop-filter: blur(8px);
       }
-      .setting-item {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        font-size: 0.85rem;
+      .visualizer-container::before, .visualizer-container::after {
+        content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none;
+      }
+      .visualizer-container::before {
+        top: -1px; left: -1px;
+        border-top: 2px solid var(--primary); border-left: 2px solid var(--primary);
+        border-top-left-radius: 12px;
+      }
+      .visualizer-container::after {
+        bottom: -1px; right: -1px;
+        border-bottom: 2px solid var(--primary); border-right: 2px solid var(--primary);
+        border-bottom-right-radius: 12px;
+      }
+
+      .visualizer-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
         color: var(--muted);
+        margin-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
-      .setting-item div { display: flex; justify-content: space-between; color: var(--text); font-weight: 600; }
-      input[type=range] { width: 100%; accent-color: var(--primary); }
+      .status-indicator {
+        width: 8px; height: 8px; background: #ff7a7a; border-radius: 50%;
+        box-shadow: 0 0 8px #ff7a7a; transition: background 0.3s;
+      }
+      .status-indicator.active { background: #50e3c2; box-shadow: 0 0 8px #50e3c2; }
 
       canvas#waveform {
-        width: 100%; height: 80px;
+        width: 100%;
+        height: 130px;
         background: #040811;
-        border: 1px solid var(--border);
-        border-radius: 8px;
+        border: 1px solid rgba(36, 50, 79, 0.4);
+        border-radius: 6px;
         display: block;
+      }
+
+      .spec-panel {
+        background: rgba(19, 28, 51, 0.3);
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: var(--muted);
+        backdrop-filter: blur(8px);
+      }
+      .spec-item span { color: var(--text); font-weight: bold; }
+
+      footer { color: var(--muted); opacity: 0.5; font-size: 0.8rem; text-align: center; max-width: 32rem; margin-top: 1rem; }
+
+      @media (min-width: 768px) {
+        .content-layout {
+          flex-direction: row;
+          justify-content: center;
+          align-items: stretch;
+          gap: 4rem;
+        }
+        .control-panel { justify-content: center; }
+        canvas#waveform { height: 180px; }
+        .lang-switcher { top: 1.5rem; right: 2rem; }
       }
     </style>
   </head>
   <body>
+    <canvas id="bg-canvas"></canvas>
+    <div class="bg-overlay"></div>
+
+    <div class="lang-switcher">
+      <button class="lang-btn active" onclick="setLanguage('en')">EN</button>
+      <button class="lang-btn" onclick="setLanguage('ru')">RU</button>
+      <button class="lang-btn" onclick="setLanguage('uz')">UZ</button>
+    </div>
+
     <div class="main-container">
       <header>
-        <h1>Whistle-Echo v2</h1>
-        <p>Нажми старт, свистни — через фиксированную паузу придет ответ.</p>
+        <h1 id="title">Whistle-Echo</h1>
+        <p id="subtitle">The app will hear your whistle and reply with the exact same frequency.</p>
       </header>
 
-      <div class="control-panel">
-        <div id="orb" class="orb">
-          <div style="text-align:center;">
-            <div class="emoji" id="orb-emoji">🎵</div>
-            <div id="tag" class="tag">ГОТОВ</div>
+      <div class="content-layout">
+        <div class="control-panel">
+          <div id="orb" class="orb" aria-hidden="true">
+            <div style="text-align:center; position:relative;">
+              <div class="emoji" id="orb-emoji">🎵</div>
+              <div id="tag" class="tag">READY</div>
+            </div>
+          </div>
+
+          <button id="toggle" class="action">Start Listening</button>
+
+          <div class="status">
+            <p id="msg" class="msg">Click the button and grant microphone access</p>
+            <p id="freq" class="freq" hidden></p>
+            <p id="err" class="err" hidden></p>
           </div>
         </div>
 
-        <button id="toggle" class="action">Начать слушать</button>
+        <div class="right-column">
+          <div class="visualizer-container">
+            <div class="visualizer-title">
+              <span id="dsp-title">DSP Frequency Analyzer</span>
+              <div id="ind" class="status-indicator"></div>
+            </div>
+            <canvas id="waveform"></canvas>
+          </div>
 
-        <div class="status">
-          <p id="msg" class="msg">Включите микрофон</p>
-          <p id="freq" class="freq" hidden></p>
+          <div class="spec-panel">
+            <div class="spec-item"><span id="lbl-range">Range</span>: <span>1000-3800 Hz</span></div>
+            <div class="spec-item"><span id="lbl-thresh">Threshold</span>: <span>Strict Tone</span></div>
+            <div class="spec-item"><span id="lbl-delay">Delay</span>: <span>500ms Hold</span></div>
+            <div class="spec-item"><span id="lbl-fft">FFT Buffer</span>: <span>4096 smpl</span></div>
+          </div>
         </div>
       </div>
 
-      <div class="settings-card">
-        <canvas id="waveform"></canvas>
-
-        <div class="setting-item">
-          <div><span>Чувствительность (Порог):</span><span id="val-thresh">120</span></div>
-          <input type="range" id="input-thresh" min="50" max="220" value="120">
-        </div>
-
-        <div class="setting-item">
-          <div><span>Задержка ответа:</span><span id="val-delay">500 мс</span></div>
-          <input type="range" id="input-delay" min="200" max="1200" step="100" value="500">
-        </div>
-      </div>
+      <footer id="footer-text">Tip: Whistle clearly and keep your microphone 10–20 cm away. Works best in quiet rooms.</footer>
     </div>
 
     <script>
-      const MIN_FREQ = 1100;
-      const MAX_FREQ = 3500;
-      
-      let audioCtx = null;
-      let analyser = null;
-      let stream = null;
-      let raf = null;
-      let listening = false;
+      const translations = {
+        en: {
+          title: "Whistle-Echo",
+          subtitle: "The app will hear your whistle and reply with the exact same frequency.",
+          tagReady: "READY",
+          tagLive: "LIVE",
+          tagHold: "HOLD",
+          tagLock: "LOCK",
+          btnStart: "Start Listening",
+          btnStop: "Stop Listening",
+          msgInit: "Click the button and grant microphone access",
+          msgListening: "Listening... whistle now!",
+          msgRecording: "Whistle detected! Holding...",
+          msgAnswering: "Heard whistle ~{freq} Hz — replying!",
+          msgStopped: "Stopped",
+          msgError: "Error",
+          dspTitle: "DSP Frequency Analyzer",
+          lblRange: "Range",
+          lblThresh: "Threshold",
+          lblDelay: "Delay",
+          lblFFT: "FFT Buffer",
+          footer: "Tip: Whistle clearly and keep your microphone 10–20 cm away. Works best in quiet rooms.",
+          errMic: "Could not access microphone"
+        },
+        ru: {
+          title: "Свист-Эхо",
+          subtitle: "Приложение услышит ваш свист и ответит свистом той же частоты.",
+          tagReady: "ГОТОВ",
+          tagLive: "В ЭФИРЕ",
+          tagHold: "ЗАХВАТ",
+          tagLock: "ПАУЗА",
+          btnStart: "Начать слушать",
+          btnStop: "Остановить",
+          msgInit: "Нажми кнопку и разреши доступ к микрофону",
+          msgListening: "Слушаю... свистни!",
+          msgRecording: "Свист обнаружен! Ожидаю...",
+          msgAnswering: "Услышал свист ~{freq} Гц — отвечаю!",
+          msgStopped: "Остановлено",
+          msgError: "Ошибка",
+          dspTitle: "DSP Анализатор частоты",
+          lblRange: "Диапазон",
+          lblThresh: "Порог",
+          lblDelay: "Пауза",
+          lblFFT: "FFT Буфер",
+          footer: "Совет: свисти чётко и держи микрофон в 10–20 см. Лучше всего работает в тишине.",
+          errMic: "Не удалось получить доступ к микрофону"
+        },
+        uz: {
+          title: "Whistle-Echo",
+          subtitle: "Ilova xushtagingizni eshitadi va xuddi shu chastotada javob qaytaradi.",
+          tagReady: "TAYYOR",
+          tagLive: "EFIRDA",
+          tagHold: "USHLANDI",
+          tagLock: "PAUZA",
+          btnStart: "Tinglashni boshlash",
+          btnStop: "To'xtatish",
+          msgInit: "Tugmani bosing va mikrofonga ruxsat bering",
+          msgListening: "Eshityapman... xushtak chaling!",
+          msgRecording: "Xushtak aniqlandi! Kutilmoqda...",
+          msgAnswering: "~{freq} Gs li xushtak eshitildi — javob beryapman!",
+          msgStopped: "To'xtatildi",
+          msgError: "Xatolik",
+          dspTitle: "DSP Chastota analizatori",
+          lblRange: "Diapazon",
+          lblThresh: "Chegara",
+          lblDelay: "Kechikish",
+          lblFFT: "FFT Buferi",
+          footer: "Maslahat: Aniq xushtak chaling va mikrofonni 10–20 sm masofada tuting. Tinch xonada yaxshi ishlaydi.",
+          errMic: "Mikrofonga ulanib bo'lmadi"
+        }
+      };
 
-      // Режимы состояния: 'LISTEN', 'WAIT_REPLY', 'COOLDOWN'
-      let state = 'LISTEN'; 
-      let detectedFreq = 0;
-      let timerId = null;
+      let currentLang = 'en';
+
+      const MIN_FREQ = 1000;
+      const MAX_FREQ = 3800;
+      const MAGNITUDE_THRESHOLD = 140;
+      
+      const HOLD_DELAY_MS = 500;           // Задержка ожидания после первого обнаружения свиста
+      const COOLDOWN_AFTER_REPLY_MS = 1500; // Пауза блокировки микрофона после воспроизведения звука
+
+      // Состояния двигателя: 'LISTEN', 'HOLD', 'COOLDOWN'
+      let engineState = 'LISTEN';
+      let freqSamples = [];
+      let holdTimer = null;
+      let cooldownUntil = 0;
 
       const orb = document.getElementById("orb");
       const orbEmoji = document.getElementById("orb-emoji");
@@ -195,32 +409,132 @@
       const btn = document.getElementById("toggle");
       const msg = document.getElementById("msg");
       const freqEl = document.getElementById("freq");
-      
-      const inputThresh = document.getElementById("input-thresh");
-      const valThresh = document.getElementById("val-thresh");
-      const inputDelay = document.getElementById("input-delay");
-      const valDelay = document.getElementById("val-delay");
+      const errEl = document.getElementById("err");
+      const ind = document.getElementById("ind");
       
       const canvas = document.getElementById("waveform");
       const canvasCtx = canvas.getContext("2d");
+      const bgCanvas = document.getElementById("bg-canvas");
+      const bgCtx = bgCanvas.getContext("2d");
 
-      inputThresh.addEventListener('input', () => valThresh.textContent = inputThresh.value);
-      inputDelay.addEventListener('input', () => valDelay.textContent = inputDelay.value + " мс");
+      let audioCtx = null;
+      let analyser = null;
+      let stream = null;
+      let raf = null;
+      let listening = false;
+      let pingEls = [];
+      let waveDataArray = null;
+      let particles = [];
+      const PARTICLE_COUNT = window.innerWidth > 768 ? 60 : 25;
 
-      function setOrbState(st, label, emoji) {
-        orb.className = "orb " + st;
-        tag.textContent = label;
-        orbEmoji.textContent = emoji;
+      window.setLanguage = function(lang) {
+        currentLang = lang;
+        document.querySelectorAll('.lang-btn').forEach(b => {
+          b.classList.toggle('active', b.textContent.toLowerCase() === lang);
+        });
+
+        const t = translations[lang];
+        document.getElementById("title").textContent = t.title;
+        document.getElementById("subtitle").textContent = t.subtitle;
+        document.getElementById("dsp-title").textContent = t.dspTitle;
+        document.getElementById("lbl-range").textContent = t.lblRange;
+        document.getElementById("lbl-thresh").textContent = t.lblThresh;
+        document.getElementById("lbl-delay").textContent = t.lblDelay;
+        document.getElementById("lbl-fft").textContent = t.lblFFT;
+        document.getElementById("footer-text").textContent = t.footer;
+
+        updateVisualState();
+      };
+
+      function updateVisualState() {
+        const t = translations[currentLang];
+        btn.textContent = listening ? t.btnStop : t.btnStart;
+        
+        orb.className = "orb";
+        if (!listening) {
+          tag.textContent = t.tagReady;
+          orbEmoji.textContent = "🎵";
+          msg.textContent = t.msgInit;
+          ind.classList.remove("active");
+          return;
+        }
+
+        ind.classList.add("active");
+        if (engineState === 'HOLD') {
+          orb.classList.add("holding");
+          tag.textContent = t.tagHold;
+          orbEmoji.textContent = "🎯";
+        } else if (engineState === 'COOLDOWN') {
+          orb.classList.add("cooldown");
+          tag.textContent = t.tagLock;
+          orbEmoji.textContent = "🔊";
+        } else {
+          orb.classList.add("listening");
+          tag.textContent = t.tagLive;
+          orbEmoji.textContent = "🎧";
+        }
+      }
+
+      function initParticles() {
+        particles = [];
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          particles.push({
+            x: Math.random() * bgCanvas.width,
+            y: Math.random() * bgCanvas.height,
+            size: Math.random() * 2 + 0.5,
+            speedX: (Math.random() - 0.5) * 0.3,
+            speedY: -Math.random() * 0.5 - 0.2,
+            alpha: Math.random() * 0.5 + 0.1,
+            baseAlpha: Math.random() * 0.4 + 0.1
+          });
+        }
+      }
+
+      function resizeCanvases() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvasCtx.scale(dpr, dpr);
+
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+        initParticles();
+      }
+      window.addEventListener('resize', resizeCanvases);
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+      initParticles();
+
+      function setListening(v) {
+        listening = v;
+        engineState = 'LISTEN';
+        if (holdTimer) clearTimeout(holdTimer);
+        freqSamples = [];
+        
+        updateVisualState();
+        
+        pingEls.forEach((el) => el.remove());
+        pingEls = [];
+        if (v) {
+          const ping = document.createElement("span"); ping.className = "ping";
+          const pulse = document.createElement("span"); pulse.className = "pulse";
+          orb.prepend(ping, pulse);
+          pingEls = [ping, pulse];
+        }
+      }
+
+      function showError(text) {
+        if (!text) { errEl.hidden = true; return; }
+        errEl.textContent = text; errEl.hidden = false;
       }
 
       function playWhistle(freq) {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        
         osc.type = "sine";
         osc.frequency.value = freq;
-        
         const now = audioCtx.currentTime;
         const dur = 0.45;
         
@@ -229,128 +543,224 @@
         gain.gain.linearRampToValueAtTime(0.4, now + dur - 0.08);
         gain.gain.linearRampToValueAtTime(0, now + dur);
         
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        lfo.frequency.value = 5;
+        lfoGain.gain.value = freq * 0.01;
+        lfo.connect(lfoGain).connect(osc.frequency);
+        
         osc.connect(gain).connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + dur);
+        osc.start(now); lfo.start(now);
+        osc.stop(now + dur); lfo.stop(now + dur);
       }
 
-      function triggerResponse(freq) {
-        state = 'WAIT_REPLY';
-        setOrbState('captured', 'ПОЙМАЛ', '🎯');
-        msg.textContent = "Свист обнаружен! Готовлю ответ...";
+      function triggerResponse() {
+        if (freqSamples.length === 0) return;
+        
+        const avgFreq = freqSamples.reduce((a, b) => a + b, 0) / freqSamples.length;
+        const roundedF = Math.round(avgFreq);
+        const t = translations[currentLang];
+
+        playWhistle(avgFreq);
+        
+        engineState = 'COOLDOWN';
+        updateVisualState();
+        
         freqEl.hidden = false;
-        freqEl.textContent = `Частота: ${Math.round(freq)} Гц`;
+        freqEl.textContent = (currentLang === 'ru' ? "Частота: " : currentLang === 'uz' ? "Chastota: " : "Frequency: ") + roundedF + " Hz";
+        msg.textContent = t.msgAnswering.replace("{freq}", roundedF);
 
-        const delay = parseInt(inputDelay.value, 10);
+        cooldownUntil = performance.now() + COOLDOWN_AFTER_REPLY_MS;
 
-        // Ждем заданную паузу (чтобы человек успел досвистеть)
         setTimeout(() => {
-          playWhistle(freq);
-          msg.textContent = "Отвечаю!";
-          state = 'COOLDOWN';
-          setOrbState('cooldown', 'ПАУЗА', '🔊');
+          if (listening) {
+            engineState = 'LISTEN';
+            freqSamples = [];
+            updateVisualState();
+            msg.textContent = t.msgListening;
+          }
+        }, COOLDOWN_AFTER_REPLY_MS);
+      }
 
-          // Пауза 1.5 сек после своего ответа, чтобы не услышать самого себя
-          setTimeout(() => {
-            if (listening) {
-              state = 'LISTEN';
-              setOrbState('listening', 'СЛУШАЮ', '🎧');
-              msg.textContent = "Слушаю... свистни!";
-            }
-          }, 1500);
-        }, delay);
+      function stop() {
+        if (raf) cancelAnimationFrame(raf);
+        raf = null;
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+        analyser = null;
+        setListening(false);
+        msg.textContent = translations[currentLang].msgStopped;
+        freqEl.hidden = true;
+        
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
+        canvasCtx.clearRect(0, 0, w, h);
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = '#24324f';
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(0, h / 2);
+        canvasCtx.lineTo(w, h / 2);
+        canvasCtx.stroke();
+      }
+
+      function renderBackground(audioIntensity = 0) {
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        bgCtx.lineWidth = 1;
+        bgCtx.strokeStyle = 'rgba(36, 50, 79, 0.08)';
+        const gridSize = 50;
+        for (let x = 0; x < bgCanvas.width; x += gridSize) {
+          bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, bgCanvas.height); bgCtx.stroke();
+        }
+        for (let y = 0; y < bgCanvas.height; y += gridSize) {
+          bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(bgCanvas.width, y); bgCtx.stroke();
+        }
+
+        for (let i = 0; i < particles.length; i++) {
+          let p = particles[i];
+          const currentSpeedY = p.speedY * (1 + audioIntensity * 3);
+          const currentAlpha = Math.min(0.8, p.baseAlpha + audioIntensity * 0.5);
+          p.y += currentSpeedY;
+          p.x += p.speedX;
+          if (p.y < -10) {
+            p.y = bgCanvas.height + 10;
+            p.x = Math.random() * bgCanvas.width;
+          }
+          bgCtx.beginPath();
+          bgCtx.arc(p.x, p.y, p.size * (1 + audioIntensity * 1.5), 0, Math.PI * 2);
+          bgCtx.fillStyle = audioIntensity > 0.6 ? `rgba(80, 227, 194, ${currentAlpha})` : `rgba(124, 156, 255, ${currentAlpha})`;
+          bgCtx.fill();
+        }
       }
 
       async function start() {
+        showError(null);
+        const t = translations[currentLang];
         try {
           const AC = window.AudioContext || window.webkitAudioContext;
           audioCtx = audioCtx || new AC();
           if (audioCtx.state === "suspended") await audioCtx.resume();
 
           stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
           });
 
           const source = audioCtx.createMediaStreamSource(stream);
           analyser = audioCtx.createAnalyser();
-          analyser.fftSize = 2048;
+          analyser.fftSize = 4096;
+          analyser.smoothingTimeConstant = 0.2;
           source.connect(analyser);
 
           const bins = new Uint8Array(analyser.frequencyBinCount);
-          const timeData = new Uint8Array(analyser.fftSize);
-          const binHz = audioCtx.sampleRate / analyser.fftSize;
+          waveDataArray = new Uint8Array(analyser.fftSize);
           
+          const binHz = audioCtx.sampleRate / analyser.fftSize;
           const minBin = Math.floor(MIN_FREQ / binHz);
           const maxBin = Math.min(bins.length - 1, Math.ceil(MAX_FREQ / binHz));
 
-          listening = true;
-          state = 'LISTEN';
-          btn.textContent = "Остановить";
-          setOrbState('listening', 'СЛУШАЮ', '🎧');
-          msg.textContent = "Слушаю... свистни!";
+          setListening(true);
+          msg.textContent = t.msgListening;
+          resizeCanvases();
 
           const loop = () => {
             if (!analyser || !listening) return;
-
-            analyser.getByteFrequencyData(bins);
             
-            let peakBin = -1;
-            let peakVal = 0;
-            const threshold = parseInt(inputThresh.value, 10);
-
+            analyser.getByteFrequencyData(bins);
+            let peakBin = -1, peakVal = 0;
+            let totalVol = 0;
+            
             for (let i = minBin; i <= maxBin; i++) {
-              if (bins[i] > peakVal) {
-                peakVal = bins[i];
-                peakBin = i;
+              totalVol += bins[i];
+              if (bins[i] > peakVal) { peakVal = bins[i]; peakBin = i; }
+            }
+            
+            const avgVol = totalVol / (maxBin - minBin);
+            const intensity = Math.min(1, avgVol / 120);
+            const now = performance.now();
+
+            let isPureWhistle = false;
+
+            if (peakBin > 0 && peakVal > MAGNITUDE_THRESHOLD) {
+              const leftNeighbor = bins[Math.max(minBin, peakBin - 12)];
+              const rightNeighbor = bins[Math.min(maxBin, peakBin + 12)];
+              const sideAvg = (leftNeighbor + rightNeighbor) / 2;
+
+              if ((peakVal / (sideAvg + 1)) > 3.2 && (peakVal / (avgVol + 1)) > 3.8) {
+                isPureWhistle = true;
               }
             }
 
-            // Если находимся в режиме слуха и засекли громкий звук в нужном диапазоне
-            if (state === 'LISTEN' && peakVal > threshold && peakBin > 0) {
-              const freq = peakBin * binHz;
-              triggerResponse(freq);
+            // Логика состояния с задержкой
+            if (now > cooldownUntil) {
+              if (isPureWhistle) {
+                const currentFreq = peakBin * binHz;
+                freqSamples.push(currentFreq);
+
+                if (engineState === 'LISTEN') {
+                  engineState = 'HOLD';
+                  updateVisualState();
+                  msg.textContent = t.msgRecording;
+
+                  // Запускаем таймер удержания (например, 500мс), после которого вызовется ответ
+                  holdTimer = setTimeout(() => {
+                    triggerResponse();
+                  }, HOLD_DELAY_MS);
+                }
+              }
             }
 
-            // Отрисовка графической волны
-            analyser.getByteTimeDomainData(timeData);
-            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-            canvasCtx.lineWidth = 2;
-            canvasCtx.strokeStyle = state === 'LISTEN' ? '#7c9cff' : state === 'WAIT_REPLY' ? '#50e3c2' : '#ff7a7a';
+            // Отрисовка осциллограммы
+            analyser.getByteTimeDomainData(waveDataArray);
+            const w = canvas.width / (window.devicePixelRatio || 1);
+            const h = canvas.height / (window.devicePixelRatio || 1);
+            
+            canvasCtx.clearRect(0, 0, w, h);
+            canvasCtx.lineWidth = 1;
+            canvasCtx.strokeStyle = 'rgba(36, 50, 79, 0.25)';
+            for(let i = 0; i < w; i += 40) {
+              canvasCtx.beginPath(); canvasCtx.moveTo(i, 0); canvasCtx.lineTo(i, h); canvasCtx.stroke();
+            }
+            for(let j = 0; j < h; j += 30) {
+              canvasCtx.beginPath(); canvasCtx.moveTo(0, j); canvasCtx.lineTo(w, j); canvasCtx.stroke();
+            }
+
+            canvasCtx.lineWidth = 2.5;
+            canvasCtx.strokeStyle = engineState === 'COOLDOWN' ? '#ff7a7a' : engineState === 'HOLD' ? '#50e3c2' : '#7c9cff';
             
             canvasCtx.beginPath();
-            const sliceWidth = canvas.width / timeData.length;
+            const sliceWidth = w / waveDataArray.length;
             let x = 0;
-            for (let i = 0; i < timeData.length; i++) {
-              const v = timeData[i] / 128.0;
-              const y = (v * canvas.height) / 2;
+            for (let i = 0; i < waveDataArray.length; i++) {
+              const v = waveDataArray[i] / 128.0;
+              const y = (v * h) / 2;
               if (i === 0) canvasCtx.moveTo(x, y);
               else canvasCtx.lineTo(x, y);
               x += sliceWidth;
             }
+            canvasCtx.lineTo(w, h / 2);
             canvasCtx.stroke();
 
+            renderBackground(intensity);
             raf = requestAnimationFrame(loop);
           };
-
-          loop();
+          raf = requestAnimationFrame(loop);
         } catch (e) {
-          msg.textContent = "Ошибка доступа к микрофону";
+          showError(t.errMic);
+          msg.textContent = t.msgError;
+          setListening(false);
         }
       }
 
-      function stop() {
-        listening = false;
-        state = 'LISTEN';
-        if (raf) cancelAnimationFrame(raf);
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        analyser = null;
-        btn.textContent = "Начать слушать";
-        setOrbState('', 'ГОТОВ', '🎵');
-        msg.textContent = "Включите микрофон";
-        freqEl.hidden = true;
+      function idleBackgroundLoop() {
+        if (!listening) renderBackground(0);
+        requestAnimationFrame(idleBackgroundLoop);
       }
 
-      btn.addEventListener("click", () => listening ? stop() : start());
+      btn.addEventListener("click", () => (listening ? stop() : start()));
+      window.addEventListener("pagehide", stop);
+      
+      resizeCanvases();
+      stop();
+      idleBackgroundLoop();
     </script>
   </body>
 </html>
