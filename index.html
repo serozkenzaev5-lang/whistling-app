@@ -15,6 +15,7 @@
         --primary-ink: #0b1220;
         --danger: #ff7a7a;
         --success: #50e3c2;
+        --warning: #ffd166;
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; height: 100%; }
@@ -30,7 +31,7 @@
         align-items: center;
         justify-content: space-between;
         min-height: 100dvh;
-        padding: 3rem 1.25rem;
+        padding: 4.5rem 1.25rem 2.5rem;
       }
 
       #bg-canvas {
@@ -50,29 +51,42 @@
         pointer-events: none;
       }
 
-      .lang-switcher {
+      /* Top Bar: Mode Switcher & Lang Switcher */
+      .top-bar {
         position: absolute;
         top: 1rem;
+        left: 1.25rem;
         right: 1.25rem;
         z-index: 10;
         display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .pill-group {
+        display: flex;
         gap: 0.25rem;
-        background: rgba(19, 28, 51, 0.5);
+        background: rgba(19, 28, 51, 0.65);
         border: 1px solid var(--border);
         padding: 0.25rem;
         border-radius: 20px;
         backdrop-filter: blur(8px);
       }
-      .lang-btn {
+
+      .pill-btn {
         appearance: none; border: 0; background: transparent;
         color: var(--muted); font-size: 0.75rem; font-weight: 700;
-        padding: 0.35rem 0.65rem; border-radius: 15px; cursor: pointer;
+        padding: 0.35rem 0.75rem; border-radius: 15px; cursor: pointer;
         transition: color .2s, background .2s;
-        text-transform: uppercase;
       }
-      .lang-btn:hover { color: var(--text); }
-      .lang-btn.active {
+      .pill-btn:hover { color: var(--text); }
+      .pill-btn.active {
         background: var(--primary);
+        color: var(--primary-ink);
+      }
+      .pill-btn.game-active {
+        background: var(--success);
         color: var(--primary-ink);
       }
       
@@ -82,7 +96,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2.5rem;
+        gap: 2rem;
         width: 100%;
         max-width: 1100px;
         margin: auto;
@@ -90,15 +104,15 @@
       
       header { text-align: center; max-width: 36rem; }
       h1 { 
-        font-size: clamp(2.5rem, 6vw, 4rem); 
-        margin: 0 0 .5rem; 
+        font-size: clamp(2.2rem, 5.5vw, 3.6rem); 
+        margin: 0 0 .4rem; 
         letter-spacing: -0.03em; 
         font-weight: 800;
         background: linear-gradient(135deg, #fff 30%, var(--primary));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
       }
-      header p { color: var(--muted); margin: 0; font-size: 1.15rem; }
+      header p { color: var(--muted); margin: 0; font-size: 1.05rem; }
       
       .content-layout {
         display: flex;
@@ -112,14 +126,61 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1.5rem;
+        gap: 1.25rem;
         width: 100%;
         max-width: 24rem;
       }
 
+      /* Game HUD */
+      .game-hud {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        max-width: 18rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 0.6rem 1rem;
+        backdrop-filter: blur(8px);
+      }
+      .game-hud[hidden] { display: none; }
+      .hud-stat { text-align: center; }
+      .hud-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 700; }
+      .hud-val { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+      .hud-val.best { color: var(--warning); }
+
+      .note-dots {
+        display: flex;
+        gap: 0.45rem;
+        justify-content: center;
+        min-height: 1.2rem;
+      }
+      .note-dot {
+        width: 12px; height: 12px;
+        border-radius: 50%;
+        background: rgba(132, 147, 181, 0.25);
+        border: 1px solid var(--border);
+        transition: all 0.25s ease;
+      }
+      .note-dot.playing {
+        background: var(--warning);
+        box-shadow: 0 0 10px var(--warning);
+        transform: scale(1.25);
+      }
+      .note-dot.done {
+        background: var(--success);
+        box-shadow: 0 0 10px var(--success);
+        border-color: var(--success);
+      }
+      .note-dot.current {
+        border-color: var(--primary);
+        box-shadow: 0 0 8px var(--primary);
+      }
+
       .orb {
         position: relative;
-        width: 14rem; height: 14rem;
+        width: 13.5rem; height: 13.5rem;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: #111a2e;
@@ -142,9 +203,14 @@
         background: rgba(255,122,122,.08);
         box-shadow: 0 0 60px -10px var(--danger);
       }
-      .orb .emoji { font-size: 3.5rem; }
+      .orb.bot-singing {
+        border-color: rgba(255,209,102,.8);
+        background: rgba(255,209,102,.1);
+        box-shadow: 0 0 80px -5px var(--warning);
+      }
+      .orb .emoji { font-size: 3.3rem; }
       .orb .tag {
-        margin-top: .5rem; font-size: .7rem;
+        margin-top: .4rem; font-size: .7rem;
         text-transform: uppercase; letter-spacing: .2em;
         color: var(--muted); font-weight: 700;
       }
@@ -156,18 +222,35 @@
       @keyframes ping { 75%,100% { transform: scale(1.4); opacity: 0; } }
       @keyframes pulse { 0%,100% { opacity:.6 } 50% { opacity:1 } }
       
+      .btn-row {
+        display: flex;
+        gap: 0.6rem;
+        width: 100%;
+        max-width: 18rem;
+        justify-content: center;
+      }
+
       button.action {
         appearance: none; border: 0; cursor: pointer;
         background: var(--primary); color: var(--primary-ink);
         font: inherit; font-weight: 700; letter-spacing: 0.02em;
-        padding: 1rem 2.5rem; border-radius: 999px;
+        padding: 0.9rem 1.8rem; border-radius: 999px;
         box-shadow: 0 10px 30px -10px rgba(124,156,255,.6);
         transition: transform .1s ease, opacity .2s, box-shadow .2s;
-        width: 100%;
-        max-width: 16rem;
+        flex: 1;
       }
       button.action:hover { opacity: .95; box-shadow: 0 12px 35px -8px rgba(124,156,255,.8); }
       button.action:active { transform: scale(.97); }
+      button.action.secondary {
+        background: rgba(19, 28, 51, 0.8);
+        color: var(--text);
+        border: 1px solid var(--border);
+        box-shadow: none;
+        padding: 0.9rem 1.1rem;
+        flex: 0 0 auto;
+      }
+      button.action.secondary:hover { border-color: var(--primary); }
+      button.action[hidden] { display: none; }
       
       .status { min-height: 4.5rem; text-align: center; }
       .status .msg { color: var(--text); font-weight: 500; margin: 0; font-size: 1.05rem; }
@@ -245,7 +328,7 @@
       }
       .spec-item span { color: var(--text); font-weight: bold; }
 
-      footer { color: var(--muted); opacity: 0.5; font-size: 0.8rem; text-align: center; max-width: 32rem; margin-top: 1rem; }
+      footer { color: var(--muted); opacity: 0.55; font-size: 0.8rem; text-align: center; max-width: 34rem; margin-top: 1rem; }
 
       @media (min-width: 768px) {
         .content-layout {
@@ -256,7 +339,7 @@
         }
         .control-panel { justify-content: center; }
         canvas#waveform { height: 180px; }
-        .lang-switcher { top: 1.5rem; right: 2rem; }
+        .top-bar { top: 1.5rem; left: 2rem; right: 2rem; }
       }
     </style>
   </head>
@@ -264,10 +347,17 @@
     <canvas id="bg-canvas"></canvas>
     <div class="bg-overlay"></div>
 
-    <div class="lang-switcher">
-      <button class="lang-btn active" onclick="setLanguage('en')">EN</button>
-      <button class="lang-btn" onclick="setLanguage('ru')">RU</button>
-      <button class="lang-btn" onclick="setLanguage('uz')">UZ</button>
+    <div class="top-bar">
+      <div class="pill-group">
+        <button id="mode-echo" class="pill-btn active" onclick="setMode('echo')">Echo Mode</button>
+        <button id="mode-game" class="pill-btn" onclick="setMode('game')">🎮 Simon Game</button>
+      </div>
+
+      <div class="pill-group">
+        <button class="pill-btn active" onclick="setLanguage('en')">EN</button>
+        <button class="pill-btn" onclick="setLanguage('ru')">RU</button>
+        <button class="pill-btn" onclick="setLanguage('uz')">UZ</button>
+      </div>
     </div>
 
     <div class="main-container">
@@ -278,6 +368,19 @@
 
       <div class="content-layout">
         <div class="control-panel">
+          <!-- Game HUD -->
+          <div id="game-hud" class="game-hud" hidden>
+            <div class="hud-stat">
+              <div id="lbl-level" class="hud-label">Level</div>
+              <div id="val-level" class="hud-val">1</div>
+            </div>
+            <div id="note-dots" class="note-dots"></div>
+            <div class="hud-stat">
+              <div id="lbl-best" class="hud-label">Best</div>
+              <div id="val-best" class="hud-val best">1</div>
+            </div>
+          </div>
+
           <div id="orb" class="orb" aria-hidden="true">
             <div style="text-align:center; position:relative;">
               <div class="emoji" id="orb-emoji">🎵</div>
@@ -285,7 +388,10 @@
             </div>
           </div>
 
-          <button id="toggle" class="action">Start Listening</button>
+          <div class="btn-row">
+            <button id="toggle" class="action">Start Listening</button>
+            <button id="replay-btn" class="action secondary" title="Replay melody" hidden>🔁</button>
+          </div>
 
           <div class="status">
             <p id="msg" class="msg">Click the button and grant microphone access</p>
@@ -306,7 +412,7 @@
           <div class="spec-panel">
             <div class="spec-item"><span id="lbl-range">Range</span>: <span>1000-3800 Hz</span></div>
             <div class="spec-item"><span id="lbl-thresh">Threshold</span>: <span>Strict Tone</span></div>
-            <div class="spec-item"><span id="lbl-delay">Delay</span>: <span>500ms Hold</span></div>
+            <div class="spec-item"><span id="lbl-delay">Delay</span>: <span id="val-delay">500ms Hold</span></div>
             <div class="spec-item"><span id="lbl-fft">FFT Buffer</span>: <span>4096 smpl</span></div>
           </div>
         </div>
@@ -319,17 +425,30 @@
       const translations = {
         en: {
           title: "Whistle-Echo",
+          titleGame: "Whistle Simon",
           subtitle: "The app will hear your whistle and reply with the exact same frequency.",
+          subtitleGame: "Listen to the melody and whistle the exact notes back!",
+          modeEcho: "Echo Mode",
+          modeGame: "🎮 Simon Game",
+          lblLevel: "Level",
+          lblBest: "Best",
           tagReady: "READY",
           tagLive: "LIVE",
           tagHold: "HOLD",
           tagLock: "LOCK",
+          tagSing: "LISTEN",
           btnStart: "Start Listening",
-          btnStop: "Stop Listening",
+          btnStartGame: "Start Game",
+          btnStop: "Stop",
           msgInit: "Click the button and grant microphone access",
           msgListening: "Listening... whistle now!",
           msgRecording: "Whistle detected! Holding...",
-          msgAnswering: "Heard whistle ~{freq} Hz — replying!",
+          msgAnswering: "Heard {note} (~{freq} Hz) — replying!",
+          msgBotSinging: "Listen carefully to the melody...",
+          msgYourTurn: "Your turn! Whistle note {step} of {total} ({note})",
+          msgNoteHit: "Nice! Hit {note} ({heard} Hz)!",
+          msgNoteMiss: "Oops! Expected {expected}, heard {heard}. Try again!",
+          msgLevelUp: "Awesome! Level {lvl} unlocked!",
           msgStopped: "Stopped",
           msgError: "Error",
           dspTitle: "DSP Frequency Analyzer",
@@ -342,17 +461,30 @@
         },
         ru: {
           title: "Свист-Эхо",
+          titleGame: "Свист-Саймон",
           subtitle: "Приложение услышит ваш свист и ответит свистом той же частоты.",
+          subtitleGame: "Запомни мелодию и повтори её свистом нота за нотой!",
+          modeEcho: "Режим Эхо",
+          modeGame: "🎮 Мини-игра",
+          lblLevel: "Уровень",
+          lblBest: "Рекорд",
           tagReady: "ГОТОВ",
           tagLive: "В ЭФИРЕ",
           tagHold: "ЗАХВАТ",
           tagLock: "ПАУЗА",
+          tagSing: "СЛУШАЙ",
           btnStart: "Начать слушать",
+          btnStartGame: "Начать игру",
           btnStop: "Остановить",
           msgInit: "Нажми кнопку и разреши доступ к микрофону",
           msgListening: "Слушаю... свистни!",
-          msgRecording: "Свист обнаружен! Ожидаю...",
-          msgAnswering: "Услышал свист ~{freq} Гц — отвечаю!",
+          msgRecording: "Свист обнаружен! Фиксирую...",
+          msgAnswering: "Услышал {note} (~{freq} Гц) — отвечаю!",
+          msgBotSinging: "Запоминай мелодию...",
+          msgYourTurn: "Твой ход! Свистни ноту {step} из {total} ({note})",
+          msgNoteHit: "Точно! Нота {note} ({heard} Гц)!",
+          msgNoteMiss: "Мимо! Нужна {expected}, а прозвучала {heard}. Заново!",
+          msgLevelUp: "Супер! Уровень {lvl}!",
           msgStopped: "Остановлено",
           msgError: "Ошибка",
           dspTitle: "DSP Анализатор частоты",
@@ -365,17 +497,30 @@
         },
         uz: {
           title: "Whistle-Echo",
+          titleGame: "Whistle Simon",
           subtitle: "Ilova xushtagingizni eshitadi va xuddi shu chastotada javob qaytaradi.",
+          subtitleGame: "Kuyni tinglang va xuddi shu notalarni xushtak bilan qaytaring!",
+          modeEcho: "Exo rejimi",
+          modeGame: "🎮 Mini-o'yin",
+          lblLevel: "Bosqich",
+          lblBest: "Rekord",
           tagReady: "TAYYOR",
           tagLive: "EFIRDA",
           tagHold: "USHLANDI",
           tagLock: "PAUZA",
+          tagSing: "TINGLANG",
           btnStart: "Tinglashni boshlash",
+          btnStartGame: "O'yinni boshlash",
           btnStop: "To'xtatish",
           msgInit: "Tugmani bosing va mikrofonga ruxsat bering",
           msgListening: "Eshityapman... xushtak chaling!",
-          msgRecording: "Xushtak aniqlandi! Kutilmoqda...",
-          msgAnswering: "~{freq} Gs li xushtak eshitildi — javob beryapman!",
+          msgRecording: "Xushtak aniqlandi! Ushlanmoqda...",
+          msgAnswering: "{note} (~{freq} Gs) eshitildi — javob beryapman!",
+          msgBotSinging: "Kuyni diqqat bilan tinglang...",
+          msgYourTurn: "Sizning navbatingiz! {total} dan {step}-nota ({note})",
+          msgNoteHit: "Ajoyib! {note} ({heard} Gs) topildi!",
+          msgNoteMiss: "Xato! {expected} kerak edi, {heard} eshitildi. Qaytadan!",
+          msgLevelUp: "Barakalla! {lvl}-bosqich!",
           msgStopped: "To'xtatildi",
           msgError: "Xatolik",
           dspTitle: "DSP Chastota analizatori",
@@ -388,29 +533,61 @@
         }
       };
 
-      let currentLang = 'en';
+      // Ноты удобного свистового диапазона (C6 - A6)
+      const WHISTLE_NOTES = [
+        { name: "C6", freq: 1046.5 },
+        { name: "D6", freq: 1174.7 },
+        { name: "E6", freq: 1318.5 },
+        { name: "G6", freq: 1568.0 },
+        { name: "A6", freq: 1760.0 },
+        { name: "C7", freq: 2093.0 }
+      ];
 
-      const MIN_FREQ = 1000;
+      const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+      function freqToMidi(freq) {
+        return 69 + 12 * Math.log2(freq / 440);
+      }
+
+      function freqToNoteName(freq) {
+        const midi = Math.round(freqToMidi(freq));
+        const name = NOTE_NAMES[((midi % 12) + 12) % 12];
+        const octave = Math.floor(midi / 12) - 1;
+        return `${name}${octave}`;
+      }
+
+      let currentLang = 'en';
+      let appMode = 'echo'; // 'echo' | 'game'
+
+      const MIN_FREQ = 950;
       const MAX_FREQ = 3800;
       const MAGNITUDE_THRESHOLD = 140;
-      
-      const HOLD_DELAY_MS = 500;           // Задержка ожидания после первого обнаружения свиста
-      const COOLDOWN_AFTER_REPLY_MS = 1500; // Пауза блокировки микрофона после воспроизведения звука
+      const COOLDOWN_AFTER_REPLY_MS = 1400;
 
-      // Состояния двигателя: 'LISTEN', 'HOLD', 'COOLDOWN'
+      // Состояния двигателя: 'LISTEN', 'HOLD', 'COOLDOWN', 'BOT_SINGING'
       let engineState = 'LISTEN';
       let freqSamples = [];
       let holdTimer = null;
       let cooldownUntil = 0;
 
+      // Состояние мини-игры
+      let gameLevel = 1;
+      let bestLevel = parseInt(localStorage.getItem('whistle_simon_best') || '1', 10);
+      let gameSequence = [];
+      let userStepIndex = 0;
+      let gameTimeouts = [];
+
       const orb = document.getElementById("orb");
       const orbEmoji = document.getElementById("orb-emoji");
       const tag = document.getElementById("tag");
       const btn = document.getElementById("toggle");
+      const replayBtn = document.getElementById("replay-btn");
       const msg = document.getElementById("msg");
       const freqEl = document.getElementById("freq");
       const errEl = document.getElementById("err");
       const ind = document.getElementById("ind");
+      const gameHud = document.getElementById("game-hud");
+      const noteDotsEl = document.getElementById("note-dots");
       
       const canvas = document.getElementById("waveform");
       const canvasCtx = canvas.getContext("2d");
@@ -427,40 +604,75 @@
       let particles = [];
       const PARTICLE_COUNT = window.innerWidth > 768 ? 60 : 25;
 
+      function getHoldDelay() {
+        return appMode === 'game' ? 350 : 500;
+      }
+
+      window.setMode = function(mode) {
+        if (appMode === mode) return;
+        appMode = mode;
+        document.getElementById('mode-echo').classList.toggle('active', mode === 'echo');
+        const gBtn = document.getElementById('mode-game');
+        gBtn.classList.toggle('game-active', mode === 'game');
+
+        gameHud.hidden = mode !== 'game';
+        document.getElementById('val-delay').textContent = getHoldDelay() + "ms Hold";
+
+        clearGameTimers();
+        if (listening) {
+          stop();
+        }
+        applyTranslations();
+      };
+
       window.setLanguage = function(lang) {
         currentLang = lang;
-        document.querySelectorAll('.lang-btn').forEach(b => {
+        document.querySelectorAll('.top-bar .pill-group:last-child .pill-btn').forEach(b => {
           b.classList.toggle('active', b.textContent.toLowerCase() === lang);
         });
+        applyTranslations();
+      };
 
-        const t = translations[lang];
-        document.getElementById("title").textContent = t.title;
-        document.getElementById("subtitle").textContent = t.subtitle;
+      function applyTranslations() {
+        const t = translations[currentLang];
+        document.getElementById("mode-echo").textContent = t.modeEcho;
+        document.getElementById("mode-game").textContent = t.modeGame;
+        document.getElementById("title").textContent = appMode === 'game' ? t.titleGame : t.title;
+        document.getElementById("subtitle").textContent = appMode === 'game' ? t.subtitleGame : t.subtitle;
+        document.getElementById("lbl-level").textContent = t.lblLevel;
+        document.getElementById("lbl-best").textContent = t.lblBest;
         document.getElementById("dsp-title").textContent = t.dspTitle;
         document.getElementById("lbl-range").textContent = t.lblRange;
         document.getElementById("lbl-thresh").textContent = t.lblThresh;
         document.getElementById("lbl-delay").textContent = t.lblDelay;
         document.getElementById("lbl-fft").textContent = t.lblFFT;
         document.getElementById("footer-text").textContent = t.footer;
-
         updateVisualState();
-      };
+      }
 
       function updateVisualState() {
         const t = translations[currentLang];
-        btn.textContent = listening ? t.btnStop : t.btnStart;
-        
-        orb.className = "orb";
         if (!listening) {
+          btn.textContent = appMode === 'game' ? t.btnStartGame : t.btnStart;
+          replayBtn.hidden = true;
+          orb.className = "orb";
           tag.textContent = t.tagReady;
-          orbEmoji.textContent = "🎵";
+          orbEmoji.textContent = appMode === 'game' ? "🎮" : "🎵";
           msg.textContent = t.msgInit;
           ind.classList.remove("active");
           return;
         }
 
+        btn.textContent = t.btnStop;
+        replayBtn.hidden = appMode !== 'game';
         ind.classList.add("active");
-        if (engineState === 'HOLD') {
+        orb.className = "orb";
+
+        if (engineState === 'BOT_SINGING') {
+          orb.classList.add("bot-singing");
+          tag.textContent = t.tagSing;
+          orbEmoji.textContent = "🤖";
+        } else if (engineState === 'HOLD') {
           orb.classList.add("holding");
           tag.textContent = t.tagHold;
           orbEmoji.textContent = "🎯";
@@ -474,6 +686,84 @@
           orbEmoji.textContent = "🎧";
         }
       }
+
+      function renderGameHUD(playingIndex = -1) {
+        document.getElementById("val-level").textContent = gameLevel;
+        document.getElementById("val-best").textContent = bestLevel;
+        noteDotsEl.innerHTML = "";
+        gameSequence.forEach((noteObj, idx) => {
+          const dot = document.createElement("div");
+          dot.className = "note-dot";
+          if (idx === playingIndex) dot.classList.add("playing");
+          else if (engineState === 'LISTEN' && idx < userStepIndex) dot.classList.add("done");
+          else if (engineState === 'LISTEN' && idx === userStepIndex) dot.classList.add("current");
+          noteDotsEl.appendChild(dot);
+        });
+      }
+
+      function clearGameTimers() {
+        gameTimeouts.forEach(id => clearTimeout(id));
+        gameTimeouts = [];
+      }
+
+      function startNewGame() {
+        gameLevel = 1;
+        gameSequence = [];
+        addNoteToSequence();
+        addNoteToSequence(); // Начинаем с 2 нот
+        playGameSequence();
+      }
+
+      function addNoteToSequence() {
+        const randomNote = WHISTLE_NOTES[Math.floor(Math.random() * WHISTLE_NOTES.length)];
+        gameSequence.push(randomNote);
+      }
+
+      function playGameSequence() {
+        if (!listening || appMode !== 'game') return;
+        clearGameTimers();
+        engineState = 'BOT_SINGING';
+        userStepIndex = 0;
+        freqSamples = [];
+        if (holdTimer) clearTimeout(holdTimer);
+
+        const t = translations[currentLang];
+        updateVisualState();
+        msg.textContent = t.msgBotSinging;
+        freqEl.hidden = false;
+        freqEl.textContent = gameSequence.map(n => n.name).join("  →  ");
+
+        const stepDuration = 650;
+        gameSequence.forEach((noteObj, idx) => {
+          const tid = setTimeout(() => {
+            if (!listening || appMode !== 'game') return;
+            playWhistle(noteObj.freq, 0.42);
+            renderGameHUD(idx);
+          }, 400 + idx * stepDuration);
+          gameTimeouts.push(tid);
+        });
+
+        const endTid = setTimeout(() => {
+          if (!listening || appMode !== 'game') return;
+          engineState = 'LISTEN';
+          cooldownUntil = performance.now() + 250;
+          updateVisualState();
+          renderGameHUD(-1);
+          const target = gameSequence[0];
+          msg.textContent = t.msgYourTurn
+            .replace("{step}", 1)
+            .replace("{total}", gameSequence.length)
+            .replace("{note}", target.name);
+          freqEl.textContent = `🎯 ${target.name} (~${Math.round(target.freq)} Hz)`;
+        }, 400 + gameSequence.length * stepDuration + 250);
+        gameTimeouts.push(endTid);
+      }
+
+      replayBtn.addEventListener("click", () => {
+        if (listening && appMode === 'game' && engineState !== 'BOT_SINGING') {
+          playGameSequence();
+        }
+      });
 
       function initParticles() {
         particles = [];
@@ -495,7 +785,7 @@
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
-        canvasCtx.scale(dpr, dpr);
+        canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         bgCanvas.width = window.innerWidth;
         bgCanvas.height = window.innerHeight;
@@ -529,24 +819,23 @@
         errEl.textContent = text; errEl.hidden = false;
       }
 
-      function playWhistle(freq) {
+      function playWhistle(freq, dur = 0.45) {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = "sine";
         osc.frequency.value = freq;
         const now = audioCtx.currentTime;
-        const dur = 0.45;
         
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.4, now + 0.05);
-        gain.gain.linearRampToValueAtTime(0.4, now + dur - 0.08);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.04);
+        gain.gain.linearRampToValueAtTime(0.35, now + dur - 0.07);
         gain.gain.linearRampToValueAtTime(0, now + dur);
         
         const lfo = audioCtx.createOscillator();
         const lfoGain = audioCtx.createGain();
         lfo.frequency.value = 5;
-        lfoGain.gain.value = freq * 0.01;
+        lfoGain.gain.value = freq * 0.008;
         lfo.connect(lfoGain).connect(osc.frequency);
         
         osc.connect(gain).connect(audioCtx.destination);
@@ -557,32 +846,98 @@
       function triggerResponse() {
         if (freqSamples.length === 0) return;
         
-        const avgFreq = freqSamples.reduce((a, b) => a + b, 0) / freqSamples.length;
+        // Используем медиану для защиты от случайных выбросов в начале/конце свиста
+        const sorted = [...freqSamples].sort((a, b) => a - b);
+        const avgFreq = sorted[Math.floor(sorted.length / 2)];
         const roundedF = Math.round(avgFreq);
+        const detectedNote = freqToNoteName(avgFreq);
         const t = translations[currentLang];
 
-        playWhistle(avgFreq);
-        
-        engineState = 'COOLDOWN';
-        updateVisualState();
-        
-        freqEl.hidden = false;
-        freqEl.textContent = (currentLang === 'ru' ? "Частота: " : currentLang === 'uz' ? "Chastota: " : "Frequency: ") + roundedF + " Hz";
-        msg.textContent = t.msgAnswering.replace("{freq}", roundedF);
+        if (appMode === 'echo') {
+          playWhistle(avgFreq);
+          engineState = 'COOLDOWN';
+          updateVisualState();
+          
+          freqEl.hidden = false;
+          freqEl.textContent = `${detectedNote} • ${roundedF} Hz`;
+          msg.textContent = t.msgAnswering
+            .replace("{note}", detectedNote)
+            .replace("{freq}", roundedF);
 
-        cooldownUntil = performance.now() + COOLDOWN_AFTER_REPLY_MS;
+          cooldownUntil = performance.now() + COOLDOWN_AFTER_REPLY_MS;
 
-        setTimeout(() => {
-          if (listening) {
-            engineState = 'LISTEN';
-            freqSamples = [];
+          setTimeout(() => {
+            if (listening && appMode === 'echo') {
+              engineState = 'LISTEN';
+              freqSamples = [];
+              updateVisualState();
+              msg.textContent = t.msgListening;
+            }
+          }, COOLDOWN_AFTER_REPLY_MS);
+        } else {
+          // ИГРОВАЯ ПРОВЕРКА НОТЫ
+          const target = gameSequence[userStepIndex];
+          const semitoneDiff = Math.abs(freqToMidi(avgFreq) - freqToMidi(target.freq));
+          // Допуск 1.6 полутона, чтобы можно было комфортно свистеть без абсолютного слуха
+          const isMatch = semitoneDiff <= 1.6;
+
+          freqSamples = [];
+          cooldownUntil = performance.now() + 450;
+
+          if (isMatch) {
+            userStepIndex++;
+            renderGameHUD(-1);
+            msg.textContent = t.msgNoteHit
+              .replace("{note}", target.name)
+              .replace("{heard}", `${detectedNote} / ${roundedF}`);
+
+            if (userStepIndex >= gameSequence.length) {
+              // Уровень пройден!
+              gameLevel++;
+              if (gameLevel > bestLevel) {
+                bestLevel = gameLevel;
+                localStorage.setItem('whistle_simon_best', bestLevel);
+              }
+              engineState = 'COOLDOWN';
+              updateVisualState();
+              msg.textContent = t.msgLevelUp.replace("{lvl}", gameLevel);
+              addNoteToSequence();
+              const nextTid = setTimeout(() => {
+                playGameSequence();
+              }, 1300);
+              gameTimeouts.push(nextTid);
+            } else {
+              engineState = 'LISTEN';
+              updateVisualState();
+              const nextTarget = gameSequence[userStepIndex];
+              const stepTid = setTimeout(() => {
+                if (listening && engineState === 'LISTEN') {
+                  msg.textContent = t.msgYourTurn
+                    .replace("{step}", userStepIndex + 1)
+                    .replace("{total}", gameSequence.length)
+                    .replace("{note}", nextTarget.name);
+                  freqEl.textContent = `🎯 ${nextTarget.name} (~${Math.round(nextTarget.freq)} Hz)`;
+                }
+              }, 600);
+              gameTimeouts.push(stepTid);
+            }
+          } else {
+            // Ошибка — повторяем текущую мелодию заново
+            engineState = 'COOLDOWN';
             updateVisualState();
-            msg.textContent = t.msgListening;
+            msg.textContent = t.msgNoteMiss
+              .replace("{expected}", target.name)
+              .replace("{heard}", `${detectedNote} (${roundedF} Hz)`);
+            const retryTid = setTimeout(() => {
+              playGameSequence();
+            }, 1600);
+            gameTimeouts.push(retryTid);
           }
-        }, COOLDOWN_AFTER_REPLY_MS);
+        }
       }
 
       function stop() {
+        clearGameTimers();
         if (raf) cancelAnimationFrame(raf);
         raf = null;
         if (stream) stream.getTracks().forEach((t) => t.stop());
@@ -658,8 +1013,13 @@
           const maxBin = Math.min(bins.length - 1, Math.ceil(MAX_FREQ / binHz));
 
           setListening(true);
-          msg.textContent = t.msgListening;
           resizeCanvases();
+
+          if (appMode === 'game') {
+            startNewGame();
+          } else {
+            msg.textContent = t.msgListening;
+          }
 
           const loop = () => {
             if (!analyser || !listening) return;
@@ -689,8 +1049,8 @@
               }
             }
 
-            // Логика состояния с задержкой
-            if (now > cooldownUntil) {
+            // Слушаем свист только когда бот не поёт и прошла пауза cooldown
+            if (engineState !== 'BOT_SINGING' && engineState !== 'COOLDOWN' && now > cooldownUntil) {
               if (isPureWhistle) {
                 const currentFreq = peakBin * binHz;
                 freqSamples.push(currentFreq);
@@ -700,10 +1060,9 @@
                   updateVisualState();
                   msg.textContent = t.msgRecording;
 
-                  // Запускаем таймер удержания (например, 500мс), после которого вызовется ответ
                   holdTimer = setTimeout(() => {
                     triggerResponse();
-                  }, HOLD_DELAY_MS);
+                  }, getHoldDelay());
                 }
               }
             }
@@ -724,7 +1083,10 @@
             }
 
             canvasCtx.lineWidth = 2.5;
-            canvasCtx.strokeStyle = engineState === 'COOLDOWN' ? '#ff7a7a' : engineState === 'HOLD' ? '#50e3c2' : '#7c9cff';
+            canvasCtx.strokeStyle =
+              engineState === 'BOT_SINGING' ? '#ffd166' :
+              engineState === 'COOLDOWN' ? '#ff7a7a' :
+              engineState === 'HOLD' ? '#50e3c2' : '#7c9cff';
             
             canvasCtx.beginPath();
             const sliceWidth = w / waveDataArray.length;
